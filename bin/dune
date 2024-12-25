@@ -1,0 +1,4 @@
+(executable
+ (public_name luacaml)
+ (name main)
+ (libraries luacaml))

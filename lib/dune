@@ -1,0 +1,3 @@
+(library
+ (name luacaml)
+ (public_name luacaml.lib))
