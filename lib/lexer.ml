@@ -100,12 +100,13 @@ let tokenize_source source =
     else
       let c = String.get lexer.current 0 in
       let skip = cut_first_n lexer.current 1 in 
-      match c with 
-        | '0' .. '9' -> let lexer = tokenize_number lexer in tokenize_source lexer
-        | 'a' .. 'z' | 'A' .. 'a' -> let lexer = tokenize_ident lexer in tokenize_source lexer
-        | '"' -> let lexer = tokenize_string {lexer with current = skip} in tokenize_source lexer
-        | '\n' -> let lexer = {lexer with line = lexer.line + 1; col = 0; current = skip} in tokenize_source lexer
-        | _ -> let lexer = {lexer with col = lexer.col + 1; current = skip} in tokenize_source lexer      
+      let updated_lexer = match c with 
+        | '0' .. '9' -> tokenize_number lexer 
+        | 'a' .. 'z' | 'A' .. 'a' -> tokenize_ident lexer 
+        | '"' -> tokenize_string {lexer with current = skip} 
+        | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
+        | _ -> {lexer with col = lexer.col + 1; current = skip}    
+      in tokenize_source updated_lexer
   in 
     let new_lexer = Tokenizer.create source in
     let processed_lexer = tokenize_source new_lexer in
