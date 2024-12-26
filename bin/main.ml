@@ -19,6 +19,6 @@ in print_string token_str;;
 
 print_string "\r\n";;
 
-let tokens = Lexer.tokenize_source "567.12abcde\"hello, world\"" in
+let tokens = Lexer.tokenize_source "567.12abcde\n\n\n\"hello, world\"\"another one\"" in
 let token_str = stringify_tokens tokens
 in print_string token_str;;
