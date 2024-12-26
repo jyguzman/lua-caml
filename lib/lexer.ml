@@ -8,11 +8,18 @@ let cut_first_n str n =
 
 open Token
 
-let keywords = Hashtbl.create 16;;
+module Keywords = Map.Make(String);;
 
-let fun_ident = Ident("function") in Hashtbl.add keywords "function" fun_ident;
-let end_ident = Ident("end") in Hashtbl.add keywords "end" end_ident;
-let do_ident = Ident("do") in Hashtbl.add keywords "end" do_ident;;
+let keywords = Keywords.of_seq @@ List.to_seq [
+  ("function", Keywords Function);
+  ("end", Keywords End);
+  ("do", Keywords Do);
+  ("not", Keywords Not);
+  ("or", Keywords Or);
+  ("and", Keywords And);
+  ("for", Keywords For);
+  ("while", Keywords While);
+];;
 
 type lexer = {
   source: string;
@@ -27,6 +34,12 @@ module Tokenizer = struct
   let make source current line col tokens = {source = source; current = current; line = line; col = col; tokens = tokens}
 end
 
+let peek lexer n = 
+  let len = String.length lexer.current in
+  if n >= len then '\x00'
+  else String.get lexer.current n
+
+let next lexer = peek lexer 1
 
 let tokenize_string lexer = 
   let rec tokenize_string lexer acc =
@@ -88,10 +101,33 @@ let tokenize_ident lexer =
       else
         (acc, lexer) 
   in
-    let (str, updated_lexer) = tokenize_ident lexer "" in
-    let token = {token_type = Ident str; lexeme = str; line = lexer.line; col = lexer.col} in
+    let (ident, updated_lexer) = tokenize_ident lexer "" in
+    let keyword = Keywords.find_opt ident keywords in 
+    let token_type = match keyword with Some t -> t | None -> Ident ident in
+    let token = {token_type = token_type; lexeme = ident; line = lexer.line; col = lexer.col} in
     let updated_tokens = token :: updated_lexer.tokens in
     Tokenizer.make lexer.source updated_lexer.current updated_lexer.line updated_lexer.col updated_tokens
+
+let tokenize_op lexer c = 
+  let next = peek lexer 1 in 
+  let dummy = (Dummy, "") in
+  let (op, lexeme) = match c with
+  | '-' -> (Minus, "-") | '^' -> (Caret, "^")
+  | '*' -> (BinOp Star, "*")
+  | '<' -> if next = '=' then (BinOp Leq, "<=") else (BinOp Less, "<")
+  | '>' -> if next = '=' then (BinOp Geq, ">=") else (BinOp Greater, ">")
+  | '=' -> if next = '=' then (BinOp Equal, "==") else (BinOp Assign, "=")
+  | '~' -> if next = '=' then (BinOp NotEqual, "~=") else dummy
+  | '.' -> if next = '.' then (BinOp DotDot, "..") else (BinOp Dot, ".")
+  | _ -> dummy
+  in 
+  if op == Dummy then lexer 
+  else
+    let token = Token.make op lexeme lexer.line lexer.col in
+    let n = String.length token.lexeme in 
+    let skip = cut_first_n lexer.current n in 
+    {lexer with col = lexer.col + n; current = skip; tokens = token :: lexer.tokens}
+       
 
 let tokenize_source source = 
   let rec tokenize_source lexer = 
@@ -102,8 +138,9 @@ let tokenize_source source =
       let skip = cut_first_n lexer.current 1 in 
       let updated_lexer = match c with 
         | '0' .. '9' -> tokenize_number lexer 
-        | 'a' .. 'z' | 'A' .. 'a' -> tokenize_ident lexer 
+        | 'a' .. 'z' | 'A' .. 'Z' -> tokenize_ident lexer 
         | '"' -> tokenize_string {lexer with current = skip} 
+        | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' -> tokenize_op lexer c
         | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
         | _ -> {lexer with col = lexer.col + 1; current = skip}    
       in tokenize_source updated_lexer
