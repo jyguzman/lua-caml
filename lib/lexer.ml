@@ -25,7 +25,9 @@ let keywords = Keywords.of_seq @@ List.to_seq [
 
   ("if", Keywords If); ("else", Keywords Else); ("elseif", Keywords Elseif); ("then", Keywords Then);
 
-  ("true", Keywords True); ("false", Keywords False)
+  ("true", Keywords True); ("false", Keywords False);
+
+  ("local", Keywords Local);
 ];;
 
 type lexer = {
@@ -37,6 +39,15 @@ type lexer = {
 }
 
 module Tokenizer = struct
+  exception InvalidToken of string
+  exception UnterminatedString of string
+  let raise_invalid_token lexeme line col = 
+    let message = "Invalid token '" ^ lexeme ^ "' at line " ^ (string_of_int line) ^ ", col " ^ (string_of_int @@ col+1) in
+    let exc = InvalidToken message in raise exc
+
+  let raise_unterminated_str lexeme line col = 
+    let message = "Unterminated string '" ^ lexeme ^ "' starting at line " ^ (string_of_int line) ^ ", col " ^ (string_of_int @@ col+1) in
+    let exc = UnterminatedString message in raise exc
   let create source = {source = source; current = source; line = 1; col = 0; tokens = []}
   let make source current line col tokens = {source = source; current = current; line = line; col = col; tokens = tokens}
 end
@@ -50,8 +61,7 @@ let next lexer = peek lexer 1
 
 let tokenize_string lexer = 
   let rec tokenize_string lexer acc =
-    let source_len = String.length lexer.current in
-    if source_len = 0 then (acc, lexer)
+    if String.length lexer.current = 0 then Tokenizer.raise_unterminated_str acc lexer.line lexer.col
     else
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
@@ -71,8 +81,7 @@ let tokenize_string lexer =
 
 let tokenize_number lexer = 
   let rec tokenize_number lexer acc =
-    let source_len = String.length lexer.current in
-    if source_len = 0 then (acc, lexer)
+    if String.length lexer.current = 0 then (acc, lexer)
     else
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
@@ -96,17 +105,14 @@ let tokenize_number lexer =
 
 let tokenize_ident lexer = 
   let rec tokenize_ident lexer acc =
-    let source_len = String.length lexer.current in
-    if source_len = 0 then (acc, lexer)
+    if String.length lexer.current = 0 then (acc, lexer)
     else
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
       let rest = cut_first_n lexer.current 1 in
-      let acc_new = acc ^ c_str in      
-      if is_alpha c then 
-        tokenize_ident {lexer with current = rest; col = lexer.col + 1} acc_new 
-      else
-        (acc, lexer) 
+      let acc_new = acc ^ c_str in match c with 
+        | 'a' .. 'z' | 'A' .. 'Z' | '_' -> tokenize_ident {lexer with current = rest; col = lexer.col + 1} acc_new 
+        | _ -> (acc, lexer)
   in
     let (ident, updated_lexer) = tokenize_ident lexer "" in
     let keyword = Keywords.find_opt ident keywords in 
@@ -120,7 +126,6 @@ let tokenize_ident lexer =
 
 let tokenize_char lexer c = 
   let next = peek lexer 1 in 
-  let dummy = ("", Dummy, "") in
   let (name, op, lexeme) = match c with
     | '-' -> ("minus", Minus, "-") | '^' -> ("caret", Caret, "^")
     
@@ -128,7 +133,8 @@ let tokenize_char lexer c =
     | '<' -> if next = '=' then ("leq", BinOp Leq, "<=") else ("less", BinOp Less, "<")
     | '>' -> if next = '=' then ("geq", BinOp Geq, ">=") else ("greater", BinOp Greater, ">")
     | '=' -> if next = '=' then ("equal", BinOp Equal, "==") else ("assign", BinOp Assign, "=")
-    | '~' -> if next = '=' then ("notequal", BinOp NotEqual, "~=") else dummy
+    | '~' -> if next = '=' then ("notequal", BinOp NotEqual, "~=") 
+      else Tokenizer.raise_invalid_token "~" lexer.line lexer.col
     | '.' -> if next = '.' then ("dotdot", BinOp DotDot, "..") else ("dot", BinOp Dot, ".")
 
     | '[' -> ("lbracket", Punctuation LBracket, "[") | ']' -> ("rbracket", Punctuation RBracket, "]")
@@ -136,21 +142,19 @@ let tokenize_char lexer c =
     | '(' -> ("lparen", Punctuation LParen, "(") | ')' -> ("rparen", Punctuation RParen, ")")
     | ';' -> ("semicolon", Punctuation Semicolon, ";") | ':' -> ("colon", Punctuation Colon, ":")
 
-    | _ -> dummy
+    | _ -> Tokenizer.raise_invalid_token (String.make 1 c) lexer.line lexer.col
   in 
-  if op = Dummy then lexer 
-  else
-    let token = Token.make name op lexeme lexer.line lexer.col in
-    let n = String.length token.lexeme in 
-    let skip = cut_first_n lexer.current n in 
-    {lexer with col = lexer.col + n; current = skip; tokens = token :: lexer.tokens}
+  let token = Token.make name op lexeme lexer.line lexer.col in
+  let n = String.length token.lexeme in 
+  let skip = cut_first_n lexer.current n in 
+  {lexer with col = lexer.col + n; current = skip; tokens = token :: lexer.tokens}
        
-
 let tokenize_source source = 
   let rec tokenize_source lexer = 
-    if String.length lexer.current = 0 then lexer 
+    if String.length lexer.current = 0 then 
+      let eof = Token.make "eof" EOF "" lexer.line lexer.col in {lexer with tokens = eof :: lexer.tokens} 
     else
-      let c = String.get lexer.current 0 in
+      let c = peek lexer 0 in
       let skip = cut_first_n lexer.current 1 in 
       tokenize_source @@ match c with 
         | '0' .. '9' -> tokenize_number lexer 
@@ -163,8 +167,10 @@ let tokenize_source source =
         | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
 
         | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
+
+        | ' ' -> {lexer with col = lexer.col + 1; current = skip}
         
-        | _ -> {lexer with col = lexer.col + 1; current = skip}    
+        | _ -> Tokenizer.raise_invalid_token (String.make 1 c) lexer.line lexer.col
   in 
     let new_lexer = Tokenizer.create source in
     let processed_lexer = tokenize_source new_lexer in

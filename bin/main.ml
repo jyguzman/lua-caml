@@ -19,6 +19,19 @@ in print_string token_str;;
 
 print_string "\r\n";;
 
-let tokens = Lexer.tokenize_source "567.12.5(){}[function\n\n\n\"hello, world\"end\"another one\"<>\n\n<=.==..~==^" in
+let source = "
+  function do_something(x) do 
+    if x < 10 then
+      return \"I'm less than 10!\"
+    elseif x == 10 then 
+      local y = 20
+      return y
+    else
+      return x * x
+    end
+  end
+";;
+
+let tokens = Lexer.tokenize_source source in
 let token_str = stringify_tokens tokens
 in print_string token_str;;

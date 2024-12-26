@@ -40,10 +40,10 @@ type token_type =
   | Ident of string
   | Caret
   | Minus
-  | Dummy
   | BinOp of bin_op_token_type
   | Keywords of keywords
   | Punctuation of punctuation
+  | EOF
 
 type token = {
   name: string;
@@ -53,13 +53,11 @@ type token = {
   col: int
 }
 
-let stringify_token token = 
-  if token.token_type = Dummy then ""
-  else String.concat "" [
-    String.uppercase_ascii token.name; "("; 
-    token.lexeme ^ " "; 
-    string_of_int token.line ^ ":" ^ string_of_int token.col; ")"
-  ]
+let stringify_token token = String.concat "" [
+  String.uppercase_ascii token.name; "("; 
+  token.lexeme ^ " "; 
+  string_of_int token.line ^ ":" ^ string_of_int token.col; ")"
+]
 
 
 
