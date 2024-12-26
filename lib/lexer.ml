@@ -11,14 +11,21 @@ open Token
 module Keywords = Map.Make(String);;
 
 let keywords = Keywords.of_seq @@ List.to_seq [
-  ("function", Keywords Function);
-  ("end", Keywords End);
-  ("do", Keywords Do);
-  ("not", Keywords Not);
-  ("or", Keywords Or);
-  ("and", Keywords And);
-  ("for", Keywords For);
-  ("while", Keywords While);
+  ("function", Keywords Function); ("return", Keywords Return);
+
+  ("do", Keywords Do); ("end", Keywords End);
+
+  ("and", Keywords And); ("or", Keywords Or); ("not", Keywords Not);
+
+  ("in", Keywords In);
+
+  ("for", Keywords For); ("while", Keywords While); 
+  ("repeat", Keywords Repeat); ("until", Keywords Until);
+  ("break", Keywords Break);
+
+  ("if", Keywords If); ("else", Keywords Else); ("elseif", Keywords Elseif); ("then", Keywords Then);
+
+  ("true", Keywords True); ("false", Keywords False)
 ];;
 
 type lexer = {
@@ -57,7 +64,8 @@ let tokenize_string lexer =
         tokenize_string {lexer with current = rest; col = lexer.col + 1} acc_new
   in
     let (str, updated_lexer) = tokenize_string lexer "" in
-    let token = {token_type = String str; lexeme = str; line = updated_lexer.line; col = lexer.col} in
+    let token_type = String str in
+    let token = Token.make "string" token_type str lexer.line lexer.col in
     let new_tokens = token :: updated_lexer.tokens in
     Tokenizer.make lexer.source updated_lexer.current updated_lexer.line updated_lexer.col new_tokens 
     
@@ -70,20 +78,20 @@ let tokenize_number lexer =
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
       let acc_new = acc ^ c_str in  
-      let rest = cut_first_n lexer.current 1 in    
-      if is_alpha c 
-        then (acc, lexer)
-      else 
-          tokenize_number {lexer with current = rest; col = lexer.col + 1} acc_new
+      let rest = cut_first_n lexer.current 1 in 
+      let updated_lexer = tokenize_number {lexer with current = rest; col = lexer.col + 1} acc_new in   
+      match c with 
+        | '0' .. '9' -> updated_lexer
+        | '.' -> if String.contains acc '.' then (acc, lexer) else updated_lexer
+        | _ -> (acc, lexer)
   in
     let (num_string, updated_lexer) = tokenize_number lexer "" in
-    let token_type = 
-      if String.contains num_string '.' 
-        then Float(float_of_string num_string)
-      else
-        Integer(int_of_string num_string)
-      in
-    let token = {token_type = token_type; lexeme = num_string; line = lexer.line; col = lexer.col} in
+    let (name, token_type) = if 
+        String.contains num_string '.' then ("float", Float(float_of_string num_string))
+      else 
+        ("integer", Integer(int_of_string num_string)) 
+    in
+    let token = Token.make name token_type num_string lexer.line lexer.col in
     let new_tokens = token :: updated_lexer.tokens in
     Tokenizer.make lexer.source updated_lexer.current updated_lexer.line updated_lexer.col new_tokens 
 
@@ -103,27 +111,37 @@ let tokenize_ident lexer =
   in
     let (ident, updated_lexer) = tokenize_ident lexer "" in
     let keyword = Keywords.find_opt ident keywords in 
-    let token_type = match keyword with Some t -> t | None -> Ident ident in
-    let token = {token_type = token_type; lexeme = ident; line = lexer.line; col = lexer.col} in
+    let (name, token_type) = match keyword with 
+      | Some keyword_type -> (ident, keyword_type) 
+      | None -> ("ident", Ident ident) 
+    in
+    let token = Token.make name token_type ident lexer.line lexer.col in
     let updated_tokens = token :: updated_lexer.tokens in
     Tokenizer.make lexer.source updated_lexer.current updated_lexer.line updated_lexer.col updated_tokens
 
-let tokenize_op lexer c = 
+let tokenize_char lexer c = 
   let next = peek lexer 1 in 
-  let dummy = (Dummy, "") in
-  let (op, lexeme) = match c with
-  | '-' -> (Minus, "-") | '^' -> (Caret, "^")
-  | '*' -> (BinOp Star, "*")
-  | '<' -> if next = '=' then (BinOp Leq, "<=") else (BinOp Less, "<")
-  | '>' -> if next = '=' then (BinOp Geq, ">=") else (BinOp Greater, ">")
-  | '=' -> if next = '=' then (BinOp Equal, "==") else (BinOp Assign, "=")
-  | '~' -> if next = '=' then (BinOp NotEqual, "~=") else dummy
-  | '.' -> if next = '.' then (BinOp DotDot, "..") else (BinOp Dot, ".")
-  | _ -> dummy
+  let dummy = ("", Dummy, "") in
+  let (name, op, lexeme) = match c with
+    | '-' -> ("minus", Minus, "-") | '^' -> ("caret", Caret, "^")
+    
+    | '*' -> ("star", BinOp Star, "*")
+    | '<' -> if next = '=' then ("leq", BinOp Leq, "<=") else ("less", BinOp Less, "<")
+    | '>' -> if next = '=' then ("geq", BinOp Geq, ">=") else ("greater", BinOp Greater, ">")
+    | '=' -> if next = '=' then ("equal", BinOp Equal, "==") else ("assign", BinOp Assign, "=")
+    | '~' -> if next = '=' then ("notequal", BinOp NotEqual, "~=") else dummy
+    | '.' -> if next = '.' then ("dotdot", BinOp DotDot, "..") else ("dot", BinOp Dot, ".")
+
+    | '[' -> ("lbracket", Punctuation LBracket, "[") | ']' -> ("rbracket", Punctuation RBracket, "]")
+    | '{' -> ("lbrace", Punctuation LBrace, "{") | '}' -> ("rbrace", Punctuation RBrace, "}")
+    | '(' -> ("lparen", Punctuation LParen, "(") | ')' -> ("rparen", Punctuation RParen, ")")
+    | ';' -> ("semicolon", Punctuation Semicolon, ";") | ':' -> ("colon", Punctuation Colon, ":")
+
+    | _ -> dummy
   in 
-  if op == Dummy then lexer 
+  if op = Dummy then lexer 
   else
-    let token = Token.make op lexeme lexer.line lexer.col in
+    let token = Token.make name op lexeme lexer.line lexer.col in
     let n = String.length token.lexeme in 
     let skip = cut_first_n lexer.current n in 
     {lexer with col = lexer.col + n; current = skip; tokens = token :: lexer.tokens}
@@ -138,10 +156,16 @@ let tokenize_source source =
       let skip = cut_first_n lexer.current 1 in 
       let updated_lexer = match c with 
         | '0' .. '9' -> tokenize_number lexer 
+
         | 'a' .. 'z' | 'A' .. 'Z' -> tokenize_ident lexer 
+
         | '"' -> tokenize_string {lexer with current = skip} 
-        | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' -> tokenize_op lexer c
+
+        | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' 
+        | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
+
         | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
+        
         | _ -> {lexer with col = lexer.col + 1; current = skip}    
       in tokenize_source updated_lexer
   in 

@@ -13,19 +13,25 @@ type bin_op_token_type =
   | Star
   | Dot
   | DotDot
+  | Percent 
 
 type keywords = 
   | Function 
-  | Do 
-  | End 
+  | Do | End | Return
   | Not | Or | And
-  | For | While
+  | For | While | Repeat | Until | Break
+  | If | Else | Elseif | Then
+  | True | False
+  | Nil  
+  | Local
+  | In
 
 type punctuation = 
-  | Comma 
   | LBrace | RBrace 
   | LBracket | RBracket 
   | LParen | RParen 
+  | Semicolon | Comma | Colon
+
 
 type token_type = 
   | Integer of int
@@ -37,8 +43,10 @@ type token_type =
   | Dummy
   | BinOp of bin_op_token_type
   | Keywords of keywords
+  | Punctuation of punctuation
 
 type token = {
+  name: string;
   token_type: token_type;
   lexeme: string;
   line: int;
@@ -46,40 +54,15 @@ type token = {
 }
 
 let stringify_token token = 
-  let col = token.col in 
-  let line = token.line in match token.token_type with 
-    | Dummy -> ""
-    | Integer x -> String.concat "" ["Integer("; string_of_int x; " "; string_of_int line; ":"; string_of_int col; ")"]
-    | Float x -> String.concat "" ["Float("; string_of_float x; " "; string_of_int line; ":"; string_of_int col; ")"]
-    | String x -> String.concat "" ["String("; x; " "; string_of_int line; ":"; string_of_int col; ")"]
-    | Ident x -> String.concat "" ["Ident("; x; " "; string_of_int line; ":"; string_of_int col; ")"]
-    | Caret -> String.concat "" ["Caret(^"; " "; string_of_int line; ":"; string_of_int col; ")"] 
-    | Minus -> String.concat "" ["Minus(-"; " "; string_of_int line; ":"; string_of_int col; ")"]
-    | BinOp x -> (match x with 
-      | Less -> String.concat "" ["Less(<"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Leq -> String.concat "" ["Leq(<="; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Greater -> String.concat "" ["Greater(>"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Geq -> String.concat "" ["Geq(>="; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Equal -> String.concat "" ["Equal(=="; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | NotEqual -> String.concat "" ["NotEqual(~="; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Assign -> String.concat "" ["Assign(="; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Plus -> String.concat "" ["Plus(+"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Slash -> String.concat "" ["Slash(/"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Star -> String.concat "" ["Star(*"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Dot -> String.concat "" ["Dot(."; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | DotDot -> String.concat "" ["DotDot(.."; " "; string_of_int line; ":"; string_of_int col; ")"])
-    | Keywords x -> match x with 
-      | Function -> String.concat "" ["Function(function"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | End -> String.concat "" ["End(end"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Do -> String.concat "" ["Do(do"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | And -> String.concat "" ["And(and"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Or -> String.concat "" ["Or(or"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | Not -> String.concat "" ["Not(not"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | For -> String.concat "" ["For(for"; " "; string_of_int line; ":"; string_of_int col; ")"]
-      | While -> String.concat "" ["While(while"; " "; string_of_int line; ":"; string_of_int col; ")"]
+  if token.token_type = Dummy then ""
+  else String.concat "" [
+    String.uppercase_ascii token.name; "("; 
+    token.lexeme ^ " "; 
+    string_of_int token.line ^ ":" ^ string_of_int token.col; ")"
+  ]
 
 
 
 module Token = struct 
-  let make token_type lexeme line col = {token_type = token_type; lexeme = lexeme; line = line; col = col}
+  let make name token_type lexeme line col = {name = name; token_type = token_type; lexeme = lexeme; line = line; col = col}
 end
