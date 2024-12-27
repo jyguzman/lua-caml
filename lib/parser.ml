@@ -1,79 +1,5 @@
 open Token;;
 
-
-(* module type Parser = sig 
-  type t = {
-    tokens: token list; 
-    current: token; 
-    prev: token;
-    remaining: token list;
-    ast: Ast.expr;
-  }
-
-  val make : token list -> t
-  val parse_exp : t -> t
-  (* val parse_bin_exp : t -> Ast.expr *)
-end 
-
-module ExpressionParser : Parser = struct 
-  type t = {
-    tokens: token list; 
-    current: token; 
-    prev: token;
-    remaining: token list;
-    ast: Ast.expr;
-  }
-  exception InvalidToken of string;;
-
-  let make tokens = {tokens = tokens; remaining = tokens; current = (List.nth tokens 0); 
-  prev = Token.make "" EOF "" 0 0; ast = Ast.NilExp}
-  let raise_invalid_token token extra = 
-    let (name, lexeme, line, col) = (token.name, token.lexeme, token.line, token.col) in
-    let details = String.concat "" [name; ", '"; lexeme; "' line "; string_of_int line; ", col "; string_of_int col] in
-    let message = "Invalid token: (" ^ details ^ ") " ^ extra in 
-    let exc = InvalidToken message in raise exc
-
-
-  (* let current (t: t) = t.current
-  let prev (t: t) = t.prev
-
-  let peek (t: t) = List.nth t.remaining 0*)
-
-  let advance (t: t): t = match t.remaining with 
-    | [] -> {t with current = Token.make "" EOF "" 0 0; remaining = []}
-    | x :: xs -> 
-      let prev = t.current in {t with prev = prev; current = x; remaining = xs}
-
-  let parse_exp (t) : t = 
-    (* if t.current.token_type = EOF then t.ast else *)
-    let rec parse_exp_aux t = 
-      let expr = match t.remaining with 
-        | [] -> Ast.NilExp
-        | x :: _ ->
-          match x.token_type with 
-          | Float x -> {t with ast = Ast.Float x}
-          | Integer x -> {t with ast = Ast.Int x}
-          | BinOp Plus ->  
-            let r = parse_exp_aux (advance t) in 
-            {t with ast = Ast.Add (t.ast, r.ast)}
-          | EOF -> t.ast
-          | _ -> raise_invalid_token x "for expression"
-      in 
-        (* let ast_str = Ast.stringify_expr new_t.ast in 
-        let _ = print_string ast_str in  *)
-        parse_exp_aux (advance {t with ast = expr})
-  in 
-    parse_exp_aux t
-
-  (* let parse_bin_exp (t) : Ast.expr = 
-    (* let left = prev t in  *)
-    let op = peek t in 
-    (* let right = peek t in  *)
-    match op.token_type with 
-      | BinOp Plus -> Ast.Add(parse_exp t, parse_exp t)
-      | _ -> raise_invalid_token op "for binary expression" *)
-end  *)
-
 exception InvalidToken of string;;
 
 let raise_invalid_token token extra = 
@@ -82,21 +8,71 @@ let raise_invalid_token token extra =
   let message = "Invalid token: (" ^ details ^ ") " ^ extra in 
   let exc = InvalidToken message in raise exc
 
-let parse_exp tokens = 
-  let rec parse_exp_aux ast tokens = 
+module type Parser = sig 
+  type t 
+  val parse_expr : Ast.expr -> token list -> Ast.expr * token list
+end
+
+module PrimaryParser = struct 
+  type t 
+  let parse_expr ast tokens =
     match tokens with 
+      | [] -> (Ast.NilExp, [])
+      | x :: xs -> match x.token_type with 
+        | Float x -> (Ast.Float x, xs)
+        | Integer x ->  (Ast.Int x, xs)
+        | String x -> (Ast.String x, xs)
+        | EOF -> (ast, [])
+        | _ -> raise_invalid_token x "for primary expression"
+end
+
+module TermParser(P: Parser) = struct 
+  type t 
+  let parse_factor = P.parse_expr
+
+  let  parse_expr ast tokens =
+    let rec parse_expr_aux left remaining =
+      match remaining with 
+        | [] -> (ast, [])
+        | x :: xs -> match x.token_type with 
+        | Minus -> 
+          let (right, rest) =  parse_factor Ast.NilExp xs in 
+            parse_expr_aux (Ast.Subtract (left, right)) rest
+        | BinOp x -> 
+          (match x with 
+          | Plus -> 
+            let (right, rest) =  parse_factor Ast.NilExp xs in 
+            parse_expr_aux (Ast.Add (left, right)) rest
+          | _ -> parse_factor left remaining)
+        | _ ->  
+          parse_factor left remaining
+  in 
+      let (left, remaining) = parse_factor ast tokens in 
+      parse_expr_aux left remaining
+end
+
+module FactorParser(P: Parser) = struct 
+  type t 
+  let parse_primary = P.parse_expr
+
+  let parse_expr ast tokens =
+    let (left, remaining) = parse_primary ast tokens in
+    match remaining with 
       | [] -> (ast, [])
       | x :: xs -> match x.token_type with 
-        | Float x -> parse_exp_aux (Ast.Float x) xs
-        | Integer x -> parse_exp_aux (Ast.Int x) xs
-        | BinOp x -> 
-            let (right, rest) = parse_exp_aux Ast.NilExp xs in
-            (match x with 
-            | Plus -> parse_exp_aux (Ast.Add (ast, right)) rest
-            | Star -> parse_exp_aux (Ast.Multiply (ast, right)) rest
-            | Slash -> parse_exp_aux (Ast.Divide (ast, right)) rest
-            | _ -> (Ast.NilExp, []))
-        | EOF -> (ast, [])
-        | _ -> raise_invalid_token x "for expression"
-in 
-  parse_exp_aux Ast.NilExp tokens
+      | BinOp x -> 
+        (match x with 
+        | Star -> 
+          let (right, rest) =  parse_primary Ast.NilExp xs in 
+           (Ast.Multiply (left, right), rest)
+        | Slash -> 
+          let (right, rest) =  parse_primary Ast.NilExp xs in 
+           (Ast.Divide (left, right), rest)
+        | _ -> (left, remaining))
+      | _ -> 
+        (left, remaining)
+end
+
+module TFactorParser = FactorParser(PrimaryParser)
+module TTermParser = TermParser(TFactorParser)
+module ExpressionParser = TTermParser

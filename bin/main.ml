@@ -1,5 +1,5 @@
 open Luacaml;;
-(* open Parser;; *)
+open Parser;;
 
 (* let source = "
   function do_something(x: number): number 
@@ -32,15 +32,15 @@ in print_string token_str;; *)
 let expr_string = Ast.stringify_expr expr in 
 print_string expr_string;;  *)
 
-let source = "2 + 3 * 5" in 
+let source = "2 * 3 + 5 - 8" in 
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
 let _ = print_string tok_string in *)
 (* let parser = ExpressionParser.make tokens in  
 let ast = ExpressionParser.parse_exp parser in 
 let ast_string = Ast.stringify_expr ast in *)
-let (ast, _) = Parser.parse_exp tokens in
+let (ast, _) = ExpressionParser.parse_expr Ast.NilExp tokens in
 let ast_string = Ast.stringify_expr ast in 
-let _ = print_string ast_string in 
+let _ = print_string (ast_string ^ "\r\n") in 
 let ans = Luacaml.Eval.eval_expr ast in 
 print_int ans;;
