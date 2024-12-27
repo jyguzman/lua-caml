@@ -129,7 +129,8 @@ let tokenize_char lexer c =
   let (name, op, lexeme) = match c with
     | '-' -> ("minus", Minus, "-") | '^' -> ("caret", Caret, "^")
     
-    | '*' -> ("star", BinOp Star, "*")
+    | '*' -> ("star", BinOp Star, "*") | '+' -> ("plus", BinOp Plus, "+")
+    | '/' -> ("slash", BinOp Slash, "/")
     | '<' -> if next = '=' then ("leq", BinOp Leq, "<=") else ("less", BinOp Less, "<")
     | '>' -> if next = '=' then ("geq", BinOp Geq, ">=") else ("greater", BinOp Greater, ">")
     | '=' -> if next = '=' then ("equal", BinOp Equal, "==") else ("assign", BinOp Assign, "=")

@@ -26,6 +26,9 @@ type keywords =
   | Local
   | In
 
+type annotations = 
+  | Number | Bool | List
+
 type punctuation = 
   | LBrace | RBrace 
   | LBracket | RBracket 
@@ -59,6 +62,10 @@ let stringify_token token = String.concat "" [
   string_of_int token.line ^ ":" ^ string_of_int token.col; ")"
 ]
 
+let rec stringify_tokens = function 
+  | [] -> ""
+  | [x] -> stringify_token x
+  | x :: xs -> stringify_token x ^ ", " ^ stringify_tokens xs;;
 
 
 module Token = struct 

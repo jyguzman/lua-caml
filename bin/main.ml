@@ -1,30 +1,12 @@
 open Luacaml;;
+(* open Parser;; *)
 
-let rec stringify_tokens = function 
-| [] -> ""
-| [x] -> Luacaml.Token.stringify_token x
-| x :: xs -> Token.stringify_token x ^ ", " ^ stringify_tokens xs;;
-
-let l: Lexer.lexer = Lexer.Tokenizer.create "356.78end" in
-let lexer = Lexer.tokenize_number l in 
-let token_str = stringify_tokens lexer.tokens in
-print_string (token_str ^ "   " ^ lexer.current);;
-
-print_string "\r\n";;
-
-let l: Lexer.lexer = Lexer.Tokenizer.create "function" in
-let lexer = Lexer.tokenize_ident l in 
-let token_str = stringify_tokens lexer.tokens
-in print_string token_str;;
-
-print_string "\r\n";;
-
-let source = "
-  function do_something(x) do 
+(* let source = "
+  function do_something(x: number): number 
     if x < 10 then
       return \"I'm less than 10!\"
     elseif x == 10 then 
-      local y = 20
+      y: int = 20
       return y
     else
       return x * x
@@ -33,5 +15,32 @@ let source = "
 ";;
 
 let tokens = Lexer.tokenize_source source in
-let token_str = stringify_tokens tokens
-in print_string token_str;;
+let token_str = Token.stringify_tokens tokens
+in print_string token_str;; *)
+
+(* let expr = 
+  Ast.Add(
+    Ast.Int 3, 
+    Ast.Multiply(
+      Ast.Int 10, 
+      Ast.Subtract(
+        Ast.Float 5.5,
+        Ast.Int 50
+      )
+    )
+  ) in 
+let expr_string = Ast.stringify_expr expr in 
+print_string expr_string;;  *)
+
+let source = "2 + 3 * 5" in 
+let tokens = Lexer.tokenize_source source in 
+(* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
+let _ = print_string tok_string in *)
+(* let parser = ExpressionParser.make tokens in  
+let ast = ExpressionParser.parse_exp parser in 
+let ast_string = Ast.stringify_expr ast in *)
+let (ast, _) = Parser.parse_exp tokens in
+let ast_string = Ast.stringify_expr ast in 
+let _ = print_string ast_string in 
+let ans = Luacaml.Eval.eval_expr ast in 
+print_int ans;;
