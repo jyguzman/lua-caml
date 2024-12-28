@@ -30,7 +30,7 @@ let rec parse_expr expr tokens =
         | Punctuation LParen -> 
           let expr, rest = parse_expr expr xs in 
           Ast.Grouping expr, rest 
-        (* | Punctuation RParen -> expr, xs *)
+        | Punctuation RParen -> expr, xs
         | EOF -> expr, []
         | _ -> parse_expr expr tokens
         (* | _ -> raise_invalid_token x "for primary expression" *)
