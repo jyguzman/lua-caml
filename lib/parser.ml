@@ -26,6 +26,28 @@ module PrimaryParser = struct
         | _ -> raise_invalid_token x "for primary expression"
 end
 
+module ComparisonParser(P: Parser) = struct 
+  type t 
+  let parse_term = P.parse_expr
+
+  let  parse_expr ast tokens =
+    let rec parse_expr_aux left remaining =
+      match remaining with 
+        | [] -> (left, [])
+        | x :: xs -> 
+          let (right, rest) = parse_term Ast.NilExp xs in
+          match x.token_type with 
+            | BinOp Equal -> parse_expr_aux (Ast.Equal (left, right)) rest
+            | BinOp Less -> parse_expr_aux (Ast.Less (left, right)) rest
+            | BinOp Leq -> parse_expr_aux (Ast.Leq (left, right)) rest
+            | BinOp Greater -> parse_expr_aux (Ast.Greater (left, right)) rest
+            | BinOp Geq -> parse_expr_aux (Ast.Geq (left, right)) rest
+            | BinOp NotEqual -> parse_expr_aux (Ast.Neq (left, right)) rest
+            | _ -> left, remaining
+    in 
+      let (left, remaining) = parse_term ast tokens in 
+        parse_expr_aux left remaining
+end
 
 module TermParser(P: Parser) = struct 
   type t 
@@ -40,11 +62,11 @@ module TermParser(P: Parser) = struct
           match x.token_type with 
             | Minus -> parse_expr_aux (Ast.Subtract (left, right)) rest
             | BinOp Plus -> parse_expr_aux (Ast.Add (left, right)) rest
-            | _ ->  parse_factor left remaining
+            | _ -> left, remaining
     in 
       let (left, remaining) = parse_factor ast tokens in 
-      let _ = print_string (Ast.stringify_expr left ^ "\r\n") in 
-      let _ = print_string (stringify_tokens remaining ^ "\r\n") in
+      (* let _ = print_string (Ast.stringify_expr left ^ "\r\n") in 
+      let _ = print_string (stringify_tokens remaining ^ "\r\n") in *)
         parse_expr_aux left remaining
 end
 
@@ -61,11 +83,9 @@ module FactorParser(P: Parser) = struct
           match x.token_type with 
             | BinOp Star -> parse_expr_aux (Ast.Multiply (left, right)) rest
             | BinOp Slash -> parse_expr_aux (Ast.Divide (left, right)) rest
-            | _ -> (left, remaining)
+            | _ -> left, remaining
     in 
       let (left, remaining) = parse_unary ast tokens in 
-      let _ = print_string (Ast.stringify_expr left ^ "\r\n") in 
-      let _ = print_string (stringify_tokens remaining ^ "\r\n") in 
         parse_expr_aux left remaining
 
 end
@@ -90,4 +110,5 @@ end
 module TUnaryParser = UnaryParser(PrimaryParser)
 module TFactorParser = FactorParser(TUnaryParser)
 module TTermParser = TermParser(TFactorParser)
-module ExpressionParser = TTermParser
+module TComparisonParser = ComparisonParser(TTermParser)
+module ExpressionParser = TComparisonParser

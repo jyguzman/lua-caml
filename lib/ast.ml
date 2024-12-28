@@ -32,6 +32,7 @@ let stringify_expr expr =
       | Negate x -> indent ^ "-" ^ (stringify_expr x 0) 
       | Grouping x -> indent ^ "Grouping:\n" ^ (stringify_expr x 0)
       | Boolean x -> indent ^ if x then "true" else "false"
+      | Greater (l, r) -> indent ^ "Greater:\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1))
       | Add (l, r) -> indent ^ "Add:\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1))
       | Subtract (l, r) -> indent ^ "Subtract:\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1))
       | Multiply (l, r) -> indent ^ "Multiply:\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1))
