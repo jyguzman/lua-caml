@@ -165,31 +165,6 @@ module PowerParser(P: ExprParser)= struct
       let left, remaining = parse_primary ast tokens in 
         parse_expr_aux left remaining
 end 
-(* module PowerParser(P: ExprParser)= struct
-  type t
-  let parse_primary = P.parse_expr
-
-  let rec parse_expr ast tokens =
-    let rec parse_expr_aux left remaining =
-      match remaining with 
-        | [] -> left, []
-        | x :: xs -> 
-          let right, rest = parse_expr Ast.Nil xs in
-            match x.token_type with 
-              | Caret -> parse_expr_aux (Ast.Power (left, right)) rest 
-              | Minus -> Ast.Negate right, rest
-              | Keywords Not -> Ast.Not right, rest
-              | _ -> left, remaining
-    in 
-      match tokens with 
-        | [] -> ast, []
-        | _ :: [] -> parse_primary ast tokens
-        | x :: y :: _ -> match x.token_type, y.token_type with 
-          | Minus, _ | Keywords Not, _ -> parse_expr_aux ast tokens
-          | _, Minus -> parse_primary ast tokens
-          | _ -> let left, remaining = parse_primary ast tokens in 
-              parse_expr_aux left remaining
-end  *)
 
 module TPowerParser = PowerParser(PrimaryParser)
 module TUnaryParser = UnaryParser(TPowerParser)
