@@ -1,5 +1,5 @@
 type expr = 
-  | NilExp 
+  | Nil 
   | Int of int
   | Float of float
   | String of string
@@ -26,6 +26,15 @@ type stmt =
 
 let rec repeat_str str n = 
   if n = 0 then "" else str ^ (repeat_str str (n-1)) 
+
+
+let stringify_lit = function 
+  | String x -> "\""^x^"\""
+  | Int x -> string_of_int x 
+  | Float x -> string_of_float x
+  | Boolean x -> if x = true then "true" else "false"
+  | Nil -> "nil"
+  | _ -> ""
     
 let stringify_expr expr = 
   let rec stringify_expr expr level = 
@@ -36,7 +45,7 @@ let stringify_expr expr =
     match expr with 
       | Int x -> indent ^ "Int(" ^ string_of_int x ^ ")"
       | Float x -> indent ^ "Float(" ^ string_of_float x ^ ")"
-      | String x -> indent ^ "\"" ^ x ^ "\""
+      | String x -> indent ^ "String(\"" ^ x ^ "\")"
       | Negate x -> let str = (stringify_expr x level) in  
           let no_indent = Lexer.cut_first_n str (String.length indent) in
           let negated = "-" ^ no_indent in indent ^ negated

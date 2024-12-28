@@ -31,7 +31,7 @@ in print_string token_str;; *)
 let expr_string = Ast.stringify_expr expr in 
 print_string expr_string;;  *)
 
-let source = "-5 ^ -2 ^ -3 * -5 + -10" in 
+let source = "5 * 5" in 
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
 let _ = print_string tok_string in *)

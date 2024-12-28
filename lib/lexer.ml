@@ -126,7 +126,7 @@ let tokenize_ident lexer =
 
 let tokenize_char lexer c = 
   let next = peek lexer 1 in 
-  let (name, op, lexeme) = match c with
+  let name, op, lexeme = match c with
     | '-' -> ("minus", Minus, "-") | '^' -> ("caret", Caret, "^")
     
     | '*' -> ("star", BinOp Star, "*") | '+' -> ("plus", BinOp Plus, "+")
