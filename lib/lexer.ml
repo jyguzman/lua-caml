@@ -72,7 +72,7 @@ let tokenize_string lexer =
       else 
         tokenize_string {lexer with current = rest; col = lexer.col + 1} acc_new
   in
-    let (str, updated_lexer) = tokenize_string lexer "" in
+    let str, updated_lexer = tokenize_string lexer "" in
     let token_type = String str in
     let token = Token.make "string" token_type str lexer.line lexer.col in
     let new_tokens = token :: updated_lexer.tokens in
@@ -81,7 +81,7 @@ let tokenize_string lexer =
 
 let tokenize_number lexer = 
   let rec tokenize_number lexer acc =
-    if String.length lexer.current = 0 then (acc, lexer)
+    if String.length lexer.current = 0 then acc, lexer
     else
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
@@ -91,13 +91,14 @@ let tokenize_number lexer =
       match c with 
         | '0' .. '9' -> updated_lexer
         | '.' -> if String.contains acc '.' then (acc, lexer) else updated_lexer
-        | _ -> (acc, lexer)
+        | _ -> acc, lexer
   in
-    let (num_string, updated_lexer) = tokenize_number lexer "" in
-    let (name, token_type) = if 
-        String.contains num_string '.' then ("float", Float(float_of_string num_string))
+    let num_string, updated_lexer = tokenize_number lexer "" in
+    let name, token_type = 
+      if String.contains num_string '.' then 
+        "float", Float(float_of_string num_string)
       else 
-        ("integer", Integer(int_of_string num_string)) 
+        "integer", Integer(int_of_string num_string)
     in
     let token = Token.make name token_type num_string lexer.line lexer.col in
     let new_tokens = token :: updated_lexer.tokens in
@@ -105,20 +106,20 @@ let tokenize_number lexer =
 
 let tokenize_ident lexer = 
   let rec tokenize_ident lexer acc =
-    if String.length lexer.current = 0 then (acc, lexer)
+    if String.length lexer.current = 0 then acc, lexer
     else
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
       let rest = cut_first_n lexer.current 1 in
       let acc_new = acc ^ c_str in match c with 
         | 'a' .. 'z' | 'A' .. 'Z' | '_' -> tokenize_ident {lexer with current = rest; col = lexer.col + 1} acc_new 
-        | _ -> (acc, lexer)
+        | _ -> acc, lexer
   in
-    let (ident, updated_lexer) = tokenize_ident lexer "" in
+    let ident, updated_lexer = tokenize_ident lexer "" in
     let keyword = Keywords.find_opt ident keywords in 
-    let (name, token_type) = match keyword with 
-      | Some keyword_type -> (ident, keyword_type) 
-      | None -> ("ident", Ident ident) 
+    let name, token_type = match keyword with 
+      | Some keyword_type -> ident, keyword_type
+      | None -> "ident", Ident ident 
     in
     let token = Token.make name token_type ident lexer.line lexer.col in
     let updated_tokens = token :: updated_lexer.tokens in
