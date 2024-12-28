@@ -65,8 +65,6 @@ module TermParser(P: Parser) = struct
             | _ -> left, remaining
     in 
       let (left, remaining) = parse_factor ast tokens in 
-      (* let _ = print_string (Ast.stringify_expr left ^ "\r\n") in 
-      let _ = print_string (stringify_tokens remaining ^ "\r\n") in *)
         parse_expr_aux left remaining
 end
 
@@ -112,3 +110,5 @@ module TFactorParser = FactorParser(TUnaryParser)
 module TTermParser = TermParser(TFactorParser)
 module TComparisonParser = ComparisonParser(TTermParser)
 module ExpressionParser = TComparisonParser
+
+let parse_expr tokens = let (expr, _) = ExpressionParser.parse_expr Ast.NilExp tokens in expr

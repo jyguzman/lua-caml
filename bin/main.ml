@@ -1,5 +1,4 @@
 open Luacaml;;
-open Parser;;
 
 (* let source = "
   function do_something(x: number): number 
@@ -39,7 +38,7 @@ let _ = print_string tok_string in *)
 (* let parser = ExpressionParser.make tokens in  
 let ast = ExpressionParser.parse_exp parser in 
 let ast_string = Ast.stringify_expr ast in *)
-let (ast, _) = ExpressionParser.parse_expr Ast.NilExp tokens in
+let ast = Parser.parse_expr tokens in
 let ast_string = Ast.stringify_expr ast in 
 print_string (ast_string ^ "\r\n")
 (* let ans = Luacaml.Eval.eval_expr ast in 
