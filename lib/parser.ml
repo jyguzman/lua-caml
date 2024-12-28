@@ -145,15 +145,14 @@ module PowerParser(P: ExprParser)= struct
           match x.token_type with 
             | Caret -> parse_expr_aux (Ast.Power (left, right)) rest 
             | Minus -> Ast.Negate right, rest
+            | Keywords Not -> Ast.Not right, rest
             | _ -> left, remaining
     in 
       match tokens with 
         | [] -> (ast, [])
-        | x :: _ ->
-          if x.token_type = Minus 
-            then parse_expr_aux ast tokens 
-          else 
-            let (left, remaining) = parse_primary ast tokens in 
+        | x :: _ -> match x.token_type with 
+          | Minus | Keywords Not -> parse_expr_aux ast tokens 
+          | _ -> let (left, remaining) = parse_primary ast tokens in 
               parse_expr_aux left remaining
 end 
 
