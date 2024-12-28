@@ -49,7 +49,7 @@ let stringify_expr expr =
       | Negate x -> let str = (stringify_expr x level) in  
           let no_indent = Lexer.cut_first_n str (String.length indent) in
           let negated = "-" ^ no_indent in indent ^ negated
-      | Grouping x -> indent ^ "Grouping:\n" ^ (stringify_expr x 0)
+      | Grouping x -> indent ^ "(" ^ (stringify_expr x level) ^ ")"
       | Boolean x -> indent ^ if x then "true" else "false"
       
       | Greater (l, r) -> stringify_bin_expr "Greater" l r

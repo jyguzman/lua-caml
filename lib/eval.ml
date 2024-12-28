@@ -7,7 +7,8 @@ let raise_invalid_op msg = raise (InvalidOperation msg)
 let rec eval_expr expr = 
   match expr with
     | Int _ | Float _ | String _ | Boolean _ | Nil -> expr 
-    
+    | Grouping x -> eval_expr x
+
     | Concat (l, r) -> 
       let left, right = eval_expr l, eval_expr r in 
         (match left, right with 
@@ -28,7 +29,7 @@ let rec eval_expr expr =
           | Float x, Float y  -> Float(x ** y)
           | Float x, Int y -> Float(x ** float_of_int y)
           | Int x, Float y -> Float(float_of_int x ** y)
-          | Int x, Int y -> Int(int_of_float (float_of_int x ** float_of_int y))
+          | Int x, Int y -> Float(float_of_int x ** float_of_int y)
           | _ -> raise_invalid_op ("Invalid exponentation between " ^ stringify_lit left ^ " and " ^ stringify_lit right))
 
     | Add (l, r) -> 
