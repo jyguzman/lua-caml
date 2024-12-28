@@ -22,8 +22,28 @@ module PrimaryParser = struct
         | Float x -> (Ast.Float x, xs)
         | Integer x ->  (Ast.Int x, xs)
         | String x -> (Ast.String x, xs)
+        | Keywords Nil -> (Ast.NilExp, xs)
         | EOF -> (ast, [])
         | _ -> raise_invalid_token x "for primary expression"
+end
+
+module BoolParser(P: Parser) = struct 
+  type t 
+  let parse_comparison = P.parse_expr
+
+  let  parse_expr ast tokens =
+    let rec parse_expr_aux left remaining =
+      match remaining with 
+        | [] -> (left, [])
+        | x :: xs -> 
+          let (right, rest) = parse_comparison Ast.NilExp xs in
+          match x.token_type with 
+            | Keywords And -> parse_expr_aux (Ast.And (left, right)) rest
+            | Keywords Or -> parse_expr_aux (Ast.Or (left, right)) rest
+            | _ -> left, remaining
+    in 
+      let (left, remaining) = parse_comparison ast tokens in 
+        parse_expr_aux left remaining
 end
 
 module ComparisonParser(P: Parser) = struct 
@@ -91,7 +111,7 @@ end
 module UnaryParser(P: Parser) = struct 
   type t
 
-  let parse_primary = P.parse_expr
+  let parse_power = P.parse_expr
   let rec parse_expr ast tokens =
     match tokens with
       | [] -> (ast, []) 
@@ -101,14 +121,36 @@ module UnaryParser(P: Parser) = struct
             (Ast.Negate right, rest)
           | Keywords Not -> let (right, rest) =  parse_expr Ast.NilExp xs in 
             (Ast.Not right, rest)
-          | _ ->
-            parse_primary ast tokens
+          | _ -> 
+
+            parse_power ast tokens
 end
 
+(* module PowerParser(P: Parser) = struct 
+  type t
+
+  let parse_primary = P.parse_expr
+
+  let parse_expr ast tokens =
+    let rec parse_expr_aux left remaining =
+      match remaining with 
+        | [] -> (left, [])
+        | x :: xs -> 
+          let (right, rest) =  parse_primary Ast.NilExp xs in
+          match x.token_type with 
+            | Caret -> parse_expr_aux (Ast.Power (right, left)) rest
+            | _ -> left, remaining
+    in 
+      let (left, remaining) = parse_primary ast tokens in 
+        parse_expr_aux left remaining
+end  *)
+
+(* module TPowerParser = PowerParser(PrimaryParser) *)
 module TUnaryParser = UnaryParser(PrimaryParser)
 module TFactorParser = FactorParser(TUnaryParser)
 module TTermParser = TermParser(TFactorParser)
 module TComparisonParser = ComparisonParser(TTermParser)
-module ExpressionParser = TComparisonParser
+module TBoolParser = BoolParser(TComparisonParser)
+module ExpressionParser = TBoolParser
 
 let parse_expr tokens = let (expr, _) = ExpressionParser.parse_expr Ast.NilExp tokens in expr
