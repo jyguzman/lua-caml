@@ -17,7 +17,7 @@ module PrimaryParser = struct
   type t 
   let parse_expr ast tokens =
     match tokens with 
-      | [] -> (Ast.NilExp, [])
+      | [] -> (ast, [])
       | x :: xs -> match x.token_type with 
         | Float x -> (Ast.Float x, xs)
         | Integer x ->  (Ast.Int x, xs)
@@ -26,6 +26,7 @@ module PrimaryParser = struct
         | _ -> raise_invalid_token x "for primary expression"
 end
 
+
 module TermParser(P: Parser) = struct 
   type t 
   let parse_factor = P.parse_expr
@@ -33,46 +34,60 @@ module TermParser(P: Parser) = struct
   let  parse_expr ast tokens =
     let rec parse_expr_aux left remaining =
       match remaining with 
-        | [] -> (ast, [])
-        | x :: xs -> match x.token_type with 
-        | Minus -> 
-          let (right, rest) =  parse_factor Ast.NilExp xs in 
-            parse_expr_aux (Ast.Subtract (left, right)) rest
-        | BinOp x -> 
-          (match x with 
-          | Plus -> 
-            let (right, rest) =  parse_factor Ast.NilExp xs in 
-            parse_expr_aux (Ast.Add (left, right)) rest
-          | _ -> parse_factor left remaining)
-        | _ ->  
-          parse_factor left remaining
-  in 
+        | [] -> (left, [])
+        | x :: xs -> 
+          let (right, rest) = parse_factor Ast.NilExp xs in
+          match x.token_type with 
+            | Minus -> parse_expr_aux (Ast.Subtract (left, right)) rest
+            | BinOp Plus -> parse_expr_aux (Ast.Add (left, right)) rest
+            | _ ->  parse_factor left remaining
+    in 
       let (left, remaining) = parse_factor ast tokens in 
-      parse_expr_aux left remaining
+      let _ = print_string (Ast.stringify_expr left ^ "\r\n") in 
+      let _ = print_string (stringify_tokens remaining ^ "\r\n") in
+        parse_expr_aux left remaining
 end
 
 module FactorParser(P: Parser) = struct 
   type t 
-  let parse_primary = P.parse_expr
+  let parse_unary = P.parse_expr
 
   let parse_expr ast tokens =
-    let (left, remaining) = parse_primary ast tokens in
-    match remaining with 
-      | [] -> (ast, [])
-      | x :: xs -> match x.token_type with 
-      | BinOp x -> 
-        (match x with 
-        | Star -> 
-          let (right, rest) =  parse_primary Ast.NilExp xs in 
-           (Ast.Multiply (left, right), rest)
-        | Slash -> 
-          let (right, rest) =  parse_primary Ast.NilExp xs in 
-           (Ast.Divide (left, right), rest)
-        | _ -> (left, remaining))
-      | _ -> 
-        (left, remaining)
+    let rec parse_expr_aux left remaining =
+      match remaining with 
+        | [] -> (left, [])
+        | x :: xs -> 
+          let (right, rest) =  parse_unary Ast.NilExp xs in
+          match x.token_type with 
+            | BinOp Star -> parse_expr_aux (Ast.Multiply (left, right)) rest
+            | BinOp Slash -> parse_expr_aux (Ast.Divide (left, right)) rest
+            | _ -> (left, remaining)
+    in 
+      let (left, remaining) = parse_unary ast tokens in 
+      let _ = print_string (Ast.stringify_expr left ^ "\r\n") in 
+      let _ = print_string (stringify_tokens remaining ^ "\r\n") in 
+        parse_expr_aux left remaining
+
 end
 
-module TFactorParser = FactorParser(PrimaryParser)
+module UnaryParser(P: Parser) = struct 
+  type t
+
+  let parse_primary = P.parse_expr
+  let rec parse_expr ast tokens =
+    match tokens with
+      | [] -> (ast, []) 
+      | x :: xs -> 
+        match x.token_type with 
+          | Minus -> let (right, rest) =  parse_expr Ast.NilExp xs in 
+            (Ast.Negate right, rest)
+          | Keywords Not -> let (right, rest) =  parse_expr Ast.NilExp xs in 
+            (Ast.Not right, rest)
+          | _ ->
+            parse_primary ast tokens
+end
+
+module TUnaryParser = UnaryParser(PrimaryParser)
+module TFactorParser = FactorParser(TUnaryParser)
 module TTermParser = TermParser(TFactorParser)
 module ExpressionParser = TTermParser

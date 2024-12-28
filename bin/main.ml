@@ -32,7 +32,7 @@ in print_string token_str;; *)
 let expr_string = Ast.stringify_expr expr in 
 print_string expr_string;;  *)
 
-let source = "2 * 3 + 5 - 8" in 
+let source = "-2 * -5 + -8 - 10 - -1" in 
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
 let _ = print_string tok_string in *)
@@ -40,7 +40,7 @@ let _ = print_string tok_string in *)
 let ast = ExpressionParser.parse_exp parser in 
 let ast_string = Ast.stringify_expr ast in *)
 let (ast, _) = ExpressionParser.parse_expr Ast.NilExp tokens in
-let ast_string = Ast.stringify_expr ast in 
-let _ = print_string (ast_string ^ "\r\n") in 
+(* let ast_string = Ast.stringify_expr ast in 
+let _ = print_string (ast_string ^ "\r\n") in  *)
 let ans = Luacaml.Eval.eval_expr ast in 
 print_int ans;;

@@ -29,7 +29,8 @@ let stringify_expr expr =
       | Int x -> indent ^ "Int(" ^ string_of_int x ^ ")"
       | Float x -> indent ^ "Float(" ^ string_of_float x ^ ")"
       | String x -> indent ^ "\"" ^ x ^ "\""
-      | Grouping x -> indent ^ "Grouping:\n" ^ (stringify_expr x (level))
+      | Negate x -> indent ^ "-" ^ (stringify_expr x 0) 
+      | Grouping x -> indent ^ "Grouping:\n" ^ (stringify_expr x 0)
       | Boolean x -> indent ^ if x then "true" else "false"
       | Add (l, r) -> indent ^ "Add:\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1))
       | Subtract (l, r) -> indent ^ "Subtract:\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1))
