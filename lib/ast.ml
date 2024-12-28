@@ -20,6 +20,10 @@ type expr =
 
   | Grouping of expr
 
+
+type stmt = 
+  | Return
+
 let rec repeat_str str n = 
   if n = 0 then "" else str ^ (repeat_str str (n-1)) 
     

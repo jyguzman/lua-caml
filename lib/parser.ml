@@ -8,9 +8,14 @@ let raise_invalid_token token extra =
   let message = "Invalid token: (" ^ details ^ ") " ^ extra in 
   let exc = InvalidToken message in raise exc
 
-module type Parser = sig 
+module type ExprParser = sig 
   type t 
   val parse_expr : Ast.expr -> token list -> Ast.expr * token list
+end
+
+module type StmtParser = sig 
+  type t 
+  val parse_stmt : Ast.stmt -> token list -> Ast.stmt * token list
 end
 
 module PrimaryParser = struct 
@@ -27,7 +32,7 @@ module PrimaryParser = struct
         | _ -> raise_invalid_token x "for primary expression"
 end
 
-module BoolParser(P: Parser) = struct 
+module AndOrParser(P: ExprParser) = struct 
   type t 
   let parse_comparison = P.parse_expr
 
@@ -46,7 +51,7 @@ module BoolParser(P: Parser) = struct
         parse_expr_aux left remaining
 end
 
-module ComparisonParser(P: Parser) = struct 
+module ComparisonParser(P: ExprParser) = struct 
   type t 
   let parse_term = P.parse_expr
 
@@ -69,7 +74,7 @@ module ComparisonParser(P: Parser) = struct
         parse_expr_aux left remaining
 end
 
-module TermParser(P: Parser) = struct 
+module TermParser(P: ExprParser) = struct 
   type t 
   let parse_factor = P.parse_expr
 
@@ -88,7 +93,7 @@ module TermParser(P: Parser) = struct
         parse_expr_aux left remaining
 end
 
-module FactorParser(P: Parser) = struct 
+module FactorParser(P: ExprParser) = struct 
   type t 
   let parse_unary = P.parse_expr
 
@@ -108,7 +113,26 @@ module FactorParser(P: Parser) = struct
 
 end
 
-module UnaryParser(P: Parser) = struct 
+module UnaryParser(P: ExprParser) = struct 
+  type t
+
+  let parse_power = P.parse_expr
+  let parse_expr ast tokens =
+    match tokens with
+      | [] -> (ast, []) 
+      | x :: xs -> 
+        match x.token_type with 
+          | Minus -> 
+              let (right, rest) = parse_power Ast.NilExp xs in 
+                (Ast.Negate right, rest)
+          | Keywords Not -> 
+              let (right, rest) =  parse_power Ast.NilExp xs in
+                (Ast.Not right, rest)
+          | _ -> 
+            parse_power ast tokens
+end
+
+(* module UnaryParser(P: ExprParser) = struct 
   type t
 
   let parse_power = P.parse_expr
@@ -122,35 +146,34 @@ module UnaryParser(P: Parser) = struct
           | Keywords Not -> let (right, rest) =  parse_expr Ast.NilExp xs in 
             (Ast.Not right, rest)
           | _ -> 
-
             parse_power ast tokens
-end
+end *)
 
-(* module PowerParser(P: Parser) = struct 
+module PowerParser(P: ExprParser) = struct 
   type t
 
   let parse_primary = P.parse_expr
 
-  let parse_expr ast tokens =
+  let rec parse_expr ast tokens =
     let rec parse_expr_aux left remaining =
       match remaining with 
         | [] -> (left, [])
         | x :: xs -> 
-          let (right, rest) =  parse_primary Ast.NilExp xs in
+          let (right, rest) = parse_expr Ast.NilExp xs in
           match x.token_type with 
-            | Caret -> parse_expr_aux (Ast.Power (right, left)) rest
+            | Caret -> parse_expr_aux (Ast.Power (left, right)) rest 
             | _ -> left, remaining
     in 
       let (left, remaining) = parse_primary ast tokens in 
         parse_expr_aux left remaining
-end  *)
+end 
 
-(* module TPowerParser = PowerParser(PrimaryParser) *)
-module TUnaryParser = UnaryParser(PrimaryParser)
+module TPowerParser = PowerParser(PrimaryParser)
+module TUnaryParser = UnaryParser(TPowerParser)
 module TFactorParser = FactorParser(TUnaryParser)
 module TTermParser = TermParser(TFactorParser)
 module TComparisonParser = ComparisonParser(TTermParser)
-module TBoolParser = BoolParser(TComparisonParser)
-module ExpressionParser = TBoolParser
+module TAndOrParser = AndOrParser(TComparisonParser)
+module ExpressionParser = TAndOrParser
 
 let parse_expr tokens = let (expr, _) = ExpressionParser.parse_expr Ast.NilExp tokens in expr
