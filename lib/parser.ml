@@ -8,16 +8,6 @@ let raise_invalid_token token extra =
   let message = "Invalid token: (" ^ details ^ ") " ^ extra in 
   let exc = InvalidToken message in raise exc
 
-module type ExprParser = sig 
-  type t 
-  val parse_expr : Ast.expr -> token list -> Ast.expr * token list
-end
-
-module type StmtParser = sig 
-  type t 
-  val parse_stmt : Ast.stmt -> token list -> Ast.stmt * token list
-end
-
 let rec parse_expr expr tokens = 
   parse_and_or expr tokens
 
