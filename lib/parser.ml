@@ -121,8 +121,11 @@ let rec parse_expr expr tokens =
         | Keywords Nil -> Ast.Nil, xs 
         | Punctuation LParen -> 
           let expr, rest = parse_expr expr xs in 
-          Ast.Grouping expr, rest 
-        | Punctuation RParen -> parse_expr expr xs
+            (match rest with 
+              | [] -> raise_invalid_token x "expected closing parenthesis"
+              | x :: xs -> 
+                if x.token_type != Punctuation RParen then Ast.Grouping expr, xs
+                else raise_invalid_token x "expected closing parenthesis")
         | EOF -> expr, []
         | _ -> parse_expr expr xs
         (* | _ -> raise_invalid_token x "for primary expression" *)
