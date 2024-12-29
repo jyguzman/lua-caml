@@ -9,6 +9,8 @@ let raise_invalid_token token extra =
   let exc = InvalidToken message in raise exc
 
 let rec parse_expr expr tokens = 
+  (* let _ = print_string (Ast.stringify_expr expr ^ "\n") in 
+  let _ = print_string (stringify_tokens tokens ^ "\n") in  *)
   parse_and_or expr tokens
 
   and parse_and_or expr tokens =
@@ -122,12 +124,11 @@ let rec parse_expr expr tokens =
         | Punctuation LParen -> 
           let expr, rest = parse_expr expr xs in 
             (match rest with 
-              | [] -> raise_invalid_token x "expected closing parenthesis"
-              | x :: xs -> 
-                if x.token_type != Punctuation RParen then Ast.Grouping expr, xs
-                else raise_invalid_token x "expected closing parenthesis")
+              | [] -> raise_invalid_token x "instead of closing parenthesis"
+              | x :: xs -> match x.token_type with
+                | Punctuation RParen -> Ast.Grouping expr, xs
+                | _ -> raise_invalid_token x "instead of closing parenthesis")
         | EOF -> expr, []
-        | _ -> parse_expr expr xs
-        (* | _ -> raise_invalid_token x "for primary expression" *)
+        | _ -> expr, xs
 
 let parse_expr tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
