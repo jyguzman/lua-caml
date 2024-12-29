@@ -127,7 +127,6 @@ let rec parse_expr expr tokens =
                 | Punctuation RParen -> Ast.Grouping expr, xs
                 | _ -> raise_invalid_token x "expected closing parenthesis")
         | EOF -> expr, []
-        | BinOp _ -> expr, xs
         | _ -> expr, tokens
 
 let parse_expr tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
