@@ -20,9 +20,114 @@ type expr =
 
   | Grouping of expr
 
+  | Var of var
+  | Name of name
+  | Function of func_body
 
-type stmt = 
-  | Return
+  and func_body = {
+    params: param_list;
+    body: block;
+  }
+
+  and name = string
+  and var =
+    | Name
+    | IndexExpr of {
+        target: prefix_expr;
+        subscript: expr;
+      } 
+    | PropertyAccessExpr of {
+        target: prefix_expr;
+        property: expr;
+      }
+  
+  and prefix_expr = 
+    | Var 
+    | FunctionCall of fun_call_expr 
+    | Grouping
+
+  and fun_call_expr = 
+    | DirectFunctionCall of {
+      target: prefix_expr;
+      args: args;
+    }
+    | MethodCall of {
+      target: prefix_expr;
+      target_name: name;
+    }
+
+  and args = 
+    | ExprList of {exprs: expr list}
+    | TableConstructor of table_constructor
+    | String 
+
+  and table_constructor = 
+    | FieldList of {fields: field list;}
+
+  and field =
+    | Expr of expr 
+    | KeyValStmt of {
+      key: expr;
+      value: expr;
+    }
+    | NameKeyStmt of {
+      name: name;
+      value: expr;
+    }
+
+and stmt = 
+  | AssignStmt of {
+    var_list: var list;
+    exp_list: expr list;
+  }
+  | FunctionCall of fun_call_expr
+  | DoBlock of block 
+  | WhileLoop of {
+    condition: expr;
+    body: block
+  }
+  | RepeatLoop of {
+    body: block;
+    condition: expr;
+  }
+  | IfStmt of if_stmt
+  | ForLoop of {
+    name: expr;
+    block: block;
+  }
+  | ForNamelist
+  | FunctionDeclaration of {
+    name: function_name;
+    body: func_body;
+  }
+
+  and function_name = 
+    | Name 
+
+  and if_stmt = {
+    condition: expr;
+    block: block;
+    else_if: if_stmt option;
+    else_block: block option;
+  }
+
+
+  and block = chunk 
+  and chunk = {
+    stmts: stmt list; 
+    last_stmt: last_stmt
+  }
+
+  and last_stmt = 
+    | ReturnStmt of expr list
+    | Break 
+
+  and param_list = {
+    names: name_list;
+  }
+
+  and name_list = name list
+
 
 let rec repeat_str str n = 
   if n = 0 then "" else str ^ (repeat_str str (n-1)) 
