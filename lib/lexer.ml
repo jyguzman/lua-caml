@@ -1,6 +1,3 @@
-let is_digit = function '0' .. '9' -> true | _ -> false
-let is_alpha = function 'a' .. 'z' | 'A' .. 'Z' -> true | _ -> false
-
 let cut_first_n str n = 
   let len = String.length str in 
     if len <= n then ""

@@ -20,89 +20,49 @@ type expr =
 
   | Grouping of expr
 
-  | Var of var
-  | Name of name
-  | Function of func_body
-
-  and func_body = {
-    params: param_list;
+  | Function of  {
+    name: string;
+    params: string list;
     body: block;
   }
 
-  and name = string
-  and var =
-    | Name
-    | IndexExpr of {
-        target: prefix_expr;
-        subscript: expr;
-      } 
-    | PropertyAccessExpr of {
-        target: prefix_expr;
-        property: expr;
-      }
+  | FunctionCall of fun_call
+
+  and fun_call = {
+    target: prefix_expr;
+    args: args;
+  }
   
   and prefix_expr = 
-    | Var 
-    | FunctionCall of fun_call_expr 
+    | Var of string
+    | FunctionCall of fun_call
     | Grouping
-
-  and fun_call_expr = 
-    | DirectFunctionCall of {
-      target: prefix_expr;
-      args: args;
-    }
-    | MethodCall of {
-      target: prefix_expr;
-      target_name: name;
-    }
 
   and args = 
     | ExprList of {exprs: expr list}
-    | TableConstructor of table_constructor
-    | String 
-
-  and table_constructor = 
-    | FieldList of {fields: field list;}
-
-  and field =
-    | Expr of expr 
-    | KeyValStmt of {
-      key: expr;
-      value: expr;
-    }
-    | NameKeyStmt of {
-      name: name;
-      value: expr;
-    }
+    | String of string
 
 and stmt = 
   | AssignStmt of {
-    var_list: var list;
-    exp_list: expr list;
+    left: string;
+    right: expr;
   }
-  | FunctionCall of fun_call_expr
+  | FunctionCall of fun_call
   | DoBlock of block 
   | WhileLoop of {
     condition: expr;
     body: block
   }
-  | RepeatLoop of {
-    body: block;
-    condition: expr;
-  }
   | IfStmt of if_stmt
-  | ForLoop of {
-    name: expr;
-    block: block;
-  }
-  | ForNamelist
   | FunctionDeclaration of {
-    name: function_name;
+    name: string;
     body: func_body;
   }
 
-  and function_name = 
-    | Name 
+  and func_body = {
+    params: string list;
+    block: block
+  }
 
   and if_stmt = {
     condition: expr;
@@ -115,18 +75,12 @@ and stmt =
   and block = chunk 
   and chunk = {
     stmts: stmt list; 
-    last_stmt: last_stmt
+    last_stmt: last_stmt option;
   }
 
   and last_stmt = 
-    | ReturnStmt of expr list
+    | ReturnStmt of expr
     | Break 
-
-  and param_list = {
-    names: name_list;
-  }
-
-  and name_list = name list
 
 
 let rec repeat_str str n = 

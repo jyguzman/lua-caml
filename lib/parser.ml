@@ -1,12 +1,16 @@
 open Token;;
+open Result;;
 
 exception InvalidToken of string;;
+exception ParseError of string;;
 
 let raise_invalid_token token extra = 
   let name, lexeme, line, col = token.name, token.lexeme, token.line, token.col in
   let details = String.concat "" [name; ", '"; lexeme; "' line "; string_of_int line; ", col "; string_of_int col] in
   let message = "Invalid token: (" ^ details ^ ") " ^ extra in 
   let exc = InvalidToken message in raise exc
+
+let look_ahead tokens n = List.nth_opt tokens n
 
 let rec parse_expr expr tokens = 
   parse_and_or expr tokens
@@ -129,4 +133,56 @@ let rec parse_expr expr tokens =
         | EOF -> expr, []
         | _ -> expr, tokens
 
+
 let parse_expr tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
+let parse_fun_call _tokens = Ok (Ast.FunctionCall{target = Ast.Var("func call"); args = Ast.String("arg")})
+let parse_assignment _token = Ok (Ast.AssignStmt{left = "string"; right = Ast.String("string")})
+
+let expect token expected_type =
+  if String.lowercase_ascii token.name == expected_type then Ok true
+  else Error (ParseError ("expected token type " ^ expected_type ^ ", got " ^ stringify_token token))
+
+let parse_ident tokens =
+  match tokens with 
+    | [] -> Error (ParseError "expected identifier, not end of input")
+    | x :: xs -> if expect x "ident" == Ok true then 
+      let peek = look_ahead xs 0 in match peek with 
+        | Some t -> 
+          (match t.token_type with
+            | BinOp Assign -> parse_assignment xs
+            | Punctuation RParen -> parse_fun_call xs
+            | _ -> Error (ParseError ("unexpected token " ^ stringify_token t)))
+        | None -> Error (ParseError ("hanging indentifier " ^ stringify_token x))
+      else 
+        Error (ParseError ("expected an identifier, not " ^ stringify_token x))
+
+let make_block stmts last_stmt = {Ast.stmts = stmts; Ast.last_stmt = last_stmt}
+
+let parse_function_def _tokens = Ok (
+    Ast.FunctionDeclaration{name = "func_name"; body = {params = [];  block = make_block [] None}}
+  )
+
+let parse_while_loop _tokens = Ok(Ast.WhileLoop{condition = Ast.Nil; body = make_block [] None})
+
+let parse_if_stmt _tokens = Ok(
+  Ast.IfStmt{
+    condition = Ast.Nil; 
+    block = make_block [] None; 
+    else_if = None; 
+    else_block = None
+})
+
+let parse_stmt tokens = 
+  match tokens with 
+    | [] -> Error (ParseError "unexpected end of input")
+    | x :: xs -> 
+      (match x.token_type with 
+      | Keywords Function -> parse_function_def xs
+      | Keywords While -> parse_while_loop xs
+      | Keywords If -> parse_if_stmt xs
+      | Ident _ -> parse_ident xs
+      | _ -> Error (ParseError ("expected a statement, got " ^ stringify_token x))
+    )
+
+and parse_block _tokens = {Ast.stmts = []; Ast.last_stmt = None}
+    
