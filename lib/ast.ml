@@ -18,6 +18,8 @@ type expr =
 
   | Not of expr | Negate of expr
 
+  | Name of string
+
   | Grouping of expr
 
   | Function of  {
@@ -27,6 +29,8 @@ type expr =
   }
 
   | FunctionCall of fun_call
+
+  | PrefixExpr of prefix_expr
 
   and fun_call = {
     target: prefix_expr;
@@ -39,12 +43,12 @@ type expr =
     | Grouping
 
   and args = 
-    | ExprList of {exprs: expr list}
+    | ExprList of expr list
     | String of string
 
 and stmt = 
   | AssignStmt of {
-    left: string;
+    ident: string;
     right: expr;
   }
   | FunctionCall of fun_call
@@ -53,11 +57,12 @@ and stmt =
     condition: expr;
     body: block
   }
-  | IfStmt of if_stmt
   | FunctionDeclaration of {
     name: string;
     body: func_body;
   }
+  | IfStmt of if_stmt
+  | LastStmt of last_stmt
 
   and func_body = {
     params: string list;
@@ -70,7 +75,6 @@ and stmt =
     else_if: if_stmt option;
     else_block: block option;
   }
-
 
   and block = chunk 
   and chunk = {
@@ -94,6 +98,7 @@ let stringify_lit = function
   | Boolean x -> if x = true then "true" else "false"
   | Nil -> "nil"
   | _ -> ""
+
     
 let stringify_expr expr = 
   let rec stringify_expr expr level = 
@@ -110,6 +115,7 @@ let stringify_expr expr =
           let negated = "-" ^ no_indent in indent ^ negated
       | Grouping x -> indent ^ "(" ^ (stringify_expr x level) ^ ")"
       | Boolean x -> indent ^ if x then "true" else "false"
+      | Name x -> indent ^ "Ident(\"" ^ x ^ "\")"
       
       | Greater (l, r) -> stringify_bin_expr "Greater" l r
       | Geq (l, r) -> stringify_bin_expr "Geq" l r
@@ -130,3 +136,13 @@ let stringify_expr expr =
       | _ -> ""
   in 
     stringify_expr expr 0
+
+
+let stringify_stmt stmt = 
+  match stmt with 
+    | AssignStmt s -> "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ")\n"
+    | LastStmt ReturnStmt expr -> "Return(" ^ (stringify_expr expr) ^ ")\n"
+    | _ -> ""
+
+let stringify_block block = 
+  List.map stringify_stmt block.stmts

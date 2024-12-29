@@ -1,9 +1,9 @@
+open Token;;
+
 let cut_first_n str n = 
   let len = String.length str in 
     if len <= n then ""
     else String.sub str n (len - n) 
-
-open Token
 
 module Keywords = Map.Make(String);;
 
