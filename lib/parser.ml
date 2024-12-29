@@ -9,8 +9,6 @@ let raise_invalid_token token extra =
   let exc = InvalidToken message in raise exc
 
 let rec parse_expr expr tokens = 
-  (* let _ = print_string (Ast.stringify_expr expr ^ "\n") in 
-  let _ = print_string (stringify_tokens tokens ^ "\n") in  *)
   parse_and_or expr tokens
 
   and parse_and_or expr tokens =
@@ -105,7 +103,7 @@ let rec parse_expr expr tokens =
       match remaining with 
         | [] -> left, []
         | x :: xs -> 
-          let right, rest = parse_power Ast.Nil xs in
+          let right, rest = parse_unary Ast.Nil xs in
             match x.token_type with 
               | Caret -> parse_expr_aux (Ast.Power (left, right)) rest
               | _ -> left, remaining
@@ -124,11 +122,12 @@ let rec parse_expr expr tokens =
         | Punctuation LParen -> 
           let expr, rest = parse_expr expr xs in 
             (match rest with 
-              | [] -> raise_invalid_token x "instead of closing parenthesis"
+              | [] -> raise_invalid_token x "expected closing parenthesis"
               | x :: xs -> match x.token_type with
                 | Punctuation RParen -> Ast.Grouping expr, xs
-                | _ -> raise_invalid_token x "instead of closing parenthesis")
+                | _ -> raise_invalid_token x "expected closing parenthesis")
         | EOF -> expr, []
-        | _ -> expr, xs
+        | BinOp _ -> expr, xs
+        | _ -> expr, tokens
 
 let parse_expr tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
