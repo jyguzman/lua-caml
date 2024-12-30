@@ -83,7 +83,7 @@ and stmt =
   }
 
   and last_stmt = 
-    | ReturnStmt of expr
+    | ReturnStmt of expr option
     | Break 
 
 
@@ -141,7 +141,11 @@ let stringify_expr expr =
 let stringify_stmt stmt = 
   match stmt with 
     | AssignStmt s -> "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ")\n"
-    | LastStmt ReturnStmt expr -> "Return(" ^ (stringify_expr expr) ^ ")\n"
+    | LastStmt ReturnStmt expr -> 
+        let expr_string = match expr with 
+          | Some e -> stringify_expr e
+          | None -> "empty" in  
+        "Return(" ^ expr_string ^ ")\n"
     | _ -> ""
 
 let stringify_block block = 

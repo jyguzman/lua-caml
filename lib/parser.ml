@@ -139,7 +139,7 @@ and parse_primary expr tokens =
       | EOF -> expr, []
       | _ -> expr, tokens
 
-let expect token expected_type = String.lowercase_ascii token.name == expected_type
+let expect token expected_type = token.token_type == expected_type
 
 let parse_expr__ tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
 
@@ -170,6 +170,24 @@ let parse_assignment name tokens =
 let parse_return_stmt tokens = 
   let expr, rest = parse_expr Ast.Nil tokens in 
     Ok (Ast.LastStmt (ReturnStmt expr), rest)
+
+let parse_param_list tokens = 
+  match tokens with 
+    | [] -> Error (ParseError ("unexpected end of file parsing parameter list"))
+    | x :: _ -> 
+      match x.token_type with 
+        | Punctuation LParen -> 
+            let rec parse_params tokens params = 
+              match tokens with 
+                | [] -> Error (ParseError ("unexpected end of file parsing parameter list after " ^ stringify_token x)) 
+                | x :: xs -> (match x.token_type with 
+                  | Punctuation RParen -> Ok (xs, params)
+                  | _ -> 
+                    let (param, rest) = parse_expr Ast.Nil xs in 
+                      parse_params rest (param :: params))
+            in 
+              parse_params tokens []
+        | _ -> Error (ParseError ("expected openining parenthesis, got " ^ stringify_token x))
 
 let rec parse_stmt tokens = 
   match tokens with 
@@ -208,5 +226,14 @@ and parse_block tokens =
       | Ok (stmts, rest) -> Ok ({Ast.stmts = stmts; last_stmt = None}, rest)
       | Error e -> Error e
 
+and parse_function_def tokens =
+  match tokens with 
+    | [] | [_] -> Error (ParseError "unexpected end of file while defining function")
+    | x :: xs -> 
+      match x.token_type with 
+        | Ident x -> 
+          let func_name = x in (match xs with 
+            | []) 
+        | _ -> Error (ParseError ("expected identifier for function, got " ^ stringify_token x))
 
-    
+
