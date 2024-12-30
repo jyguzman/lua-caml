@@ -193,8 +193,8 @@ let rec parse_block tokens =
     match tokens with 
       | [] -> Error (ParseError "unexpected end of file parsing block") 
       | x :: xs -> match x.token_type with 
-          EOF | Keywords End -> Ok(block, xs)
-        | Keywords Elseif | Keywords Else -> Ok(block, x :: xs)
+          EOF -> Ok(block, xs)
+          | Keywords End | Keywords Elseif | Keywords Else -> Ok(block, x :: xs)
         | _ -> 
           let* stmt, rest = parse_stmt tokens in 
             let new_block = match stmt with 
@@ -213,6 +213,7 @@ and parse_stmt tokens =
       | Keywords Function -> parse_function_def xs
       | Keywords If -> parse_if_stmt xs
       | Keywords Return -> parse_return_stmt xs
+      | Keywords Break -> Ok (Ast.LastStmt Ast.Break, xs)
       | Ident name -> 
           let next = peek xs in (match next with 
           | Some t -> (match t.token_type with
@@ -228,11 +229,16 @@ and parse_while_loop tokens =
     [] -> Error (ParseError ("unexpected end of file after while condition"))
     | x :: xs -> match x.token_type with 
       Keywords Do -> 
-        let* while_block, after_block = parse_block xs in 
-          Ok (Ast.WhileLoop {
-            condition = condition; 
-            body = while_block
-          }, after_block)
+        let* while_block, tokens_after_block = parse_block xs in 
+        (match tokens_after_block with 
+          [] -> Error (ParseError ("unexpected end of file after while loop after token " ^ stringify_token x))
+          | x :: xs -> (match x.token_type with
+            Keywords End -> Ok (Ast.WhileLoop {
+              condition = condition; 
+              body = while_block
+            }, xs)
+            | _ -> Error (ParseError ("expected 'end' after while loop, got " ^ stringify_token x))))
+          
       | _ -> Error (ParseError ("expected 'do' after while condition, got " ^ stringify_token x))
 
 and parse_if_stmt tokens = 
@@ -242,22 +248,18 @@ and parse_if_stmt tokens =
       Keywords Then -> 
         let* then_block, tokens_after_then_block = parse_block xs in 
         (match tokens_after_then_block with 
-          [] -> 
-            Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-              elseif = None; else_block = None}, tokens_after_then_block)
+          [] -> Error (ParseError ("unexpected end of file after then block " ^ stringify_token x))
           | x :: xs -> (match x.token_type with 
-              | Keywords Elseif -> 
-                let* inner_if, after_inner = parse_if_stmt xs in 
-                  Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-                  elseif = Some inner_if; else_block = None}, after_inner) 
-               
-              | Keywords Else -> 
-                let* else_block, tokens_after_else = parse_block xs in 
-                  Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-                  elseif = None; else_block = Some else_block}, tokens_after_else)
-              
-              | _ -> Error (ParseError ("unexpected token " ^ stringify_token x))))
-           
+            | Keywords Else -> 
+              let* else_block, tokens_after_else = parse_block xs in 
+                Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
+                elseif = None; else_block = Some else_block}, tokens_after_else)
+                
+            | Keywords End -> 
+              Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
+                elseif = None; else_block = None}, xs)
+
+            | _ -> Error (ParseError ("unexpected token " ^ stringify_token x))))
       | _ -> Error (ParseError ("expected then after if condition, got " ^ stringify_token x)))
       
 and parse_function_def tokens =
@@ -273,5 +275,5 @@ and parse_function_def tokens =
                   params = params;
                   block = func_body_block
                 }
-              }, tokens_after_body)
+              }, List.tl tokens_after_body)
       | _ -> Error (ParseError ("expected identifier for function, got " ^ stringify_token x))

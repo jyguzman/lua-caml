@@ -33,19 +33,31 @@ print_string expr_string;;  *)
 
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
 (* let source = "x = 50 y = 100 z = 100 return x + y" in *)
-(* let source = 
-  "while x == 50 and y < x do 
-    x = x + 1 
-    y = y + 1 
-  end" in *)
 let source = 
-  "if x == 5 then 
-    x = 1
-  elseif y == 1 then  
-    y = 1
-  else
-    z = 1  
+  "while x == 50 do 
+    if x ~= 50 then 
+      if disney == good then 
+        boss = \"bossman\"
+      else 
+        boss_two = \"miniboss\"
+      end
+      break
+    end
+    while thing == none do 
+      this = that
+      while bong == bing do 
+        bangbang = 1000
+      end
+    end
   end" in
+(* let source = 
+  "if thing == thong then 
+    if hell == heaven then 
+      goto = p 
+    end
+  else 
+    bro = sis
+  end" in *)
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
 let _ = print_string tok_string in *)

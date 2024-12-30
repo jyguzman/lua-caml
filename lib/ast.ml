@@ -57,7 +57,6 @@ and stmt =
   | Function of func
   | IfStmt of if_stmt
   | LastStmt of last_stmt
-  | Block of chunk
 
   and func = {
     name: string;
@@ -72,7 +71,7 @@ and stmt =
   and if_stmt = {
     condition: expr;
     then_block: block;
-    elseif: stmt option;
+    elseif: if_stmt option;
     else_block: block option;
   }
 
@@ -85,7 +84,6 @@ and stmt =
   and last_stmt = 
     | ReturnStmt of expr option
     | Break 
-
 
 let rec repeat_str str n = 
   if n = 0 then "" else str ^ (repeat_str str (n-1)) 
@@ -140,7 +138,7 @@ let stringify_expr expr =
 let rec stringify_block block = 
   let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
   let stmt_strings = List.map stringify_stmt block.stmts in 
-  "[" ^ String.concat ",\n" (List.rev_append stmt_strings ret_stmt_str) ^ "]"
+  "[\n\t" ^ String.concat ",\n" (List.rev_append stmt_strings ret_stmt_str) ^ "]"
 
 and stringify_stmt stmt = 
   match stmt with 
@@ -150,12 +148,17 @@ and stringify_stmt stmt =
           | Some e -> stringify_expr e
           | None -> "empty" in  
         "Return(" ^ expr_string ^ ")\n"
-    | WhileLoop wl -> "While(\ncondition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
-    | IfStmt i -> 
-      let then_str = "\n" ^ stringify_block i.then_block in 
+    | LastStmt Break -> "Break()"
+    | WhileLoop wl -> "While(condition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
+    | IfStmt i -> stringify_if_stmt i
+      (* let then_str = "\n" ^ stringify_block i.then_block in 
       let else_str = match i.else_block with None -> "" | Some e -> "\nelse: " ^ stringify_block e in
-      let else_if_str = match i.elseif with None -> "" | Some e -> "\nelse if: " ^ stringify_stmt e in
-      "If(\ncondition = " ^ stringify_expr i.condition ^ then_str ^ else_if_str ^ else_str ^ ")"
+      let else_if_str = match i.elseif with None -> "" | Some e -> "\nelse if: " ^ (stringify_block e) in
+      "If(condition = " ^ stringify_expr i.condition ^ then_str ^ else_if_str ^ else_str ^ ")" *)
     | _ -> ""
 
-
+and stringify_if_stmt if_stmt = 
+  let then_str = "\n\t\tthen: " ^ stringify_block if_stmt.then_block in 
+  let else_str = match if_stmt.else_block with None -> "" | Some e -> "\n\t\telse: " ^ stringify_block e in
+  let else_if_str = match if_stmt.elseif with None -> "" | Some e -> "\n\t\telse if: " ^ (stringify_if_stmt e) in
+  "If(condition = " ^ stringify_expr if_stmt.condition ^ then_str ^ else_if_str ^ else_str ^ ")"
