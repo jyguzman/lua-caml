@@ -18,20 +18,17 @@ type expr =
 
   | Not of expr | Negate of expr
 
-  | Name of string
+  | Name of name
 
   | Grouping of expr
 
-  | Function of  {
-    name: string;
-    params: string list;
-    body: block;
-  }
+  | Function of func
 
   | FunctionCall of fun_call
 
   | PrefixExpr of prefix_expr
 
+  and name = string
   and fun_call = {
     target: prefix_expr;
     args: args;
@@ -57,22 +54,25 @@ and stmt =
     condition: expr;
     body: block
   }
-  | FunctionDeclaration of {
-    name: string;
-    body: func_body;
-  }
+  | Function of func
   | IfStmt of if_stmt
   | LastStmt of last_stmt
+  | Block of chunk
 
+  and func = {
+    name: string;
+    body: func_body
+  }
+  
   and func_body = {
-    params: string list;
+    params: expr list;
     block: block
   }
 
   and if_stmt = {
     condition: expr;
-    block: block;
-    else_if: if_stmt option;
+    then_block: block;
+    elseif: stmt option;
     else_block: block option;
   }
 
@@ -104,18 +104,18 @@ let stringify_expr expr =
   let rec stringify_expr expr level = 
     let indent = repeat_str "   " level in
     let stringify_bin_expr name l r  = 
-      indent ^ name ^ ":\n" ^ indent ^ (stringify_expr l (level + 1)) ^ "\n" ^ indent ^ (stringify_expr r (level + 1)) 
+      name ^ "(" ^ (stringify_expr l (level + 1)) ^ ", " ^ (stringify_expr r (level + 1)) ^ ")"
     in
     match expr with 
-      | Int x -> indent ^ "Int(" ^ string_of_int x ^ ")"
-      | Float x -> indent ^ "Float(" ^ string_of_float x ^ ")"
-      | String x -> indent ^ "String(\"" ^ x ^ "\")"
+      | Int x -> "Int(" ^ string_of_int x ^ ")"
+      | Float x -> "Float(" ^ string_of_float x ^ ")"
+      | String x -> "String(\"" ^ x ^ "\")"
       | Negate x -> let str = (stringify_expr x level) in  
           let no_indent = Lexer.cut_first_n str (String.length indent) in
           let negated = "-" ^ no_indent in indent ^ negated
-      | Grouping x -> indent ^ "(" ^ (stringify_expr x level) ^ ")"
-      | Boolean x -> indent ^ if x then "true" else "false"
-      | Name x -> indent ^ "Ident(\"" ^ x ^ "\")"
+      | Grouping x -> "Grouping(" ^ (stringify_expr x level) ^ ")"
+      | Boolean x -> "Boolean(" ^ if x then "true" else "false" ^ ")"
+      | Name x -> "Ident(\"" ^ x ^ "\")"
       
       | Greater (l, r) -> stringify_bin_expr "Greater" l r
       | Geq (l, r) -> stringify_bin_expr "Geq" l r
@@ -137,16 +137,24 @@ let stringify_expr expr =
   in 
     stringify_expr expr 0
 
+let rec stringify_block block = 
+  let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
+  let stmt_strings = List.map stringify_stmt block.stmts in 
+  "[" ^ String.concat ",\n" (List.rev_append stmt_strings ret_stmt_str) ^ "]"
 
-let stringify_stmt stmt = 
+and stringify_stmt stmt = 
   match stmt with 
-    | AssignStmt s -> "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ")\n"
+    | AssignStmt s -> "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ")"
     | LastStmt ReturnStmt expr -> 
         let expr_string = match expr with 
           | Some e -> stringify_expr e
           | None -> "empty" in  
         "Return(" ^ expr_string ^ ")\n"
+    | WhileLoop wl -> "While(\ncondition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
+    | IfStmt i -> 
+      let then_str = "\n" ^ stringify_block i.then_block in 
+      let else_str = match i.else_block with None -> "" | Some e -> "\nelse: " ^ stringify_block e in
+      "If(\ncondition = " ^ stringify_expr i.condition ^ then_str ^ else_str ^ ")"
     | _ -> ""
 
-let stringify_block block = 
-  List.map stringify_stmt block.stmts
+

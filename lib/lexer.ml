@@ -140,6 +140,7 @@ let tokenize_char lexer c =
     | '{' -> ("lbrace", Punctuation LBrace, "{") | '}' -> ("rbrace", Punctuation RBrace, "}")
     | '(' -> ("lparen", Punctuation LParen, "(") | ')' -> ("rparen", Punctuation RParen, ")")
     | ';' -> ("semicolon", Punctuation Semicolon, ";") | ':' -> ("colon", Punctuation Colon, ":")
+    | ',' -> ("comma", Punctuation Comma, ",")
 
     | _ -> Tokenizer.raise_invalid_token (String.make 1 c) lexer.line lexer.col
   in 
@@ -163,7 +164,7 @@ let tokenize_source source =
         | '"' -> tokenize_string {lexer with current = skip} 
 
         | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' 
-        | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
+        | ',' | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
 
         | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
 

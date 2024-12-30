@@ -32,7 +32,18 @@ let expr_string = Ast.stringify_expr expr in
 print_string expr_string;;  *)
 
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
-let source = "x = 5 y = 10 z = 20 return x + y + z" in
+(* let source = "x = 50 y = 100 z = 100 return x + y" in *)
+(* let source = 
+  "while x == 50 and y < x do 
+    x = x + 1 
+    y = y + 1 
+  end" in *)
+let source = 
+  "if x == 5 then 
+    x = 1
+  else 
+    y = 1
+  end" in
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
 let _ = print_string tok_string in *)
@@ -50,8 +61,15 @@ match stmt_res with
   | Ok (stmt, _) -> print_string ("stmt: " ^ Ast.stringify_stmt stmt) 
   | Error e -> raise e *)
 
+(* let params_res = Parser.parse_params tokens in 
+match params_res with 
+  Ok (params, _) -> 
+    let strings = List.map Ast.stringify_expr params
+      in List.iter print_string (List.rev strings)
+  | Error e -> raise e *)
+
 let block_res = Parser.parse_block tokens in 
 match block_res with 
-  | Ok (block, _) -> List.iter print_string (Ast.stringify_block block) 
+  | Ok (block, _) -> print_string (Ast.stringify_block block) 
   | Error e -> raise e
 ;;
