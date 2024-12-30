@@ -154,7 +154,8 @@ and stringify_stmt stmt =
     | IfStmt i -> 
       let then_str = "\n" ^ stringify_block i.then_block in 
       let else_str = match i.else_block with None -> "" | Some e -> "\nelse: " ^ stringify_block e in
-      "If(\ncondition = " ^ stringify_expr i.condition ^ then_str ^ else_str ^ ")"
+      let else_if_str = match i.elseif with None -> "" | Some e -> "\nelse if: " ^ stringify_stmt e in
+      "If(\ncondition = " ^ stringify_expr i.condition ^ then_str ^ else_if_str ^ else_str ^ ")"
     | _ -> ""
 
 

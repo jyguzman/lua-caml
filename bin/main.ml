@@ -41,8 +41,10 @@ print_string expr_string;;  *)
 let source = 
   "if x == 5 then 
     x = 1
-  else 
+  elseif y == 1 then  
     y = 1
+  else
+    z = 1  
   end" in
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 

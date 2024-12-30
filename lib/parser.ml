@@ -240,27 +240,25 @@ and parse_if_stmt tokens =
     [] -> Error (ParseError ("unexpected end of file after if condition"))
     | x :: xs -> (match x.token_type with
       Keywords Then -> 
-        let* then_block, tokens_after_then = parse_block xs in 
-        (match tokens_after_then with 
+        let* then_block, tokens_after_then_block = parse_block xs in 
+        (match tokens_after_then_block with 
           [] -> 
             Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-              elseif = None; else_block = None}, tokens_after_then)
+              elseif = None; else_block = None}, tokens_after_then_block)
           | x :: xs -> (match x.token_type with 
               | Keywords Elseif -> 
                 let* inner_if, after_inner = parse_if_stmt xs in 
                   Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-                  elseif = Some inner_if; else_block = None}, after_inner)
-              (* | Keywords Else -> 
+                  elseif = Some inner_if; else_block = None}, after_inner) 
+               
+              | Keywords Else -> 
                 let* else_block, tokens_after_else = parse_block xs in 
                   Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-                  elseif = None; else_block = Some else_block}, tokens_after_else) *)
-
+                  elseif = None; else_block = Some else_block}, tokens_after_else)
               
               | _ -> Error (ParseError ("unexpected token " ^ stringify_token x))))
            
       | _ -> Error (ParseError ("expected then after if condition, got " ^ stringify_token x)))
-
-      
       
 and parse_function_def tokens =
   match tokens with 
