@@ -4,15 +4,10 @@ open Result;;
 exception InvalidToken of string;;
 exception ParseError of string;;
 
-
 (* Chain results easier*)
 let ( let* ) r f = match r with 
   Ok v -> f v 
 | Error e -> Error e
-
-let ( let^ ) o f = match o with 
-  Some v -> f v 
-| None -> None
 
 let raise_invalid_token token extra = 
   let name, lexeme, line, col = token.name, token.lexeme, token.line, token.col in
@@ -171,7 +166,7 @@ let parse_return_stmt tokens =
   let expr, rest = parse_expr Ast.Nil tokens in 
     Ok (Ast.LastStmt (ReturnStmt (Some expr)), rest)
 
-let parse_params tokens = 
+    let parse_params tokens = 
   let next, rest = consume tokens in match next with 
     None -> Error (ParseError ("unexpected end of file parsing parameter list"))
   | Some token -> match token.token_type with 
@@ -251,18 +246,17 @@ and parse_while_loop tokens =
               body = while_block
             }, xs)
             | _ -> Error (ParseError ("expected 'end' after while loop, got " ^ stringify_token x))))
-          
       | _ -> Error (ParseError ("expected 'do' after while condition, got " ^ stringify_token x))
 
 and parse_if_stmt tokens = 
-  let condition, after_condition = parse_expr Ast.Nil tokens in 
-  let* _, after_then = expect "THEN" (Keywords Then) after_condition in 
+  let condition, tokens_after_condition = parse_expr Ast.Nil tokens in 
+  let* _, after_then = expect "THEN" (Keywords Then) tokens_after_condition in 
   let* then_block, tokens_after_then_block = parse_block after_then in
 
   let maybe_else_token = accept (Keywords Else) tokens_after_then_block in 
   let* else_block, tokens_after_else_block = match maybe_else_token with 
-      None, _ -> Ok ({Ast.stmts=[]; last_stmt = None}, tokens_after_then_block) 
-    | Some _, after_else -> parse_block after_else
+      None, _ -> Ok ( {Ast.stmts=[]; last_stmt = None}, tokens_after_then_block) 
+    | Some _, after_else -> parse_block after_else 
   in 
   let else_block = Ast.make_optional else_block in
 
