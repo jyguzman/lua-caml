@@ -8,7 +8,6 @@ exception ParseError of string;;
 let ( let* ) r f = match r with 
   Ok v -> f v 
 | Error e -> Error e
-  
 
 let raise_invalid_token token extra = 
   let name, lexeme, line, col = token.name, token.lexeme, token.line, token.col in
@@ -16,9 +15,18 @@ let raise_invalid_token token extra =
   let message = "Invalid token: (" ^ details ^ ") " ^ extra in 
   let exc = InvalidToken message in raise exc
 
-let look_ahead tokens n = List.nth_opt tokens n
-
 let peek tokens = match tokens with [] -> None | x :: _ -> Some x
+
+let consume tokens = 
+match tokens with [] -> None, [] | x :: xs -> Some x,  xs
+
+let expect token_type_name token_type tokens =
+  match tokens with 
+    [] -> Error (ParseError ("unexpected end of file, expected token type " ^ token_type_name))
+    | x :: xs  -> match x with 
+      | x when x.token_type = token_type -> Ok (Some x, xs)
+      | x when get_tok_type x.token_type = token_type -> Ok (Some x, xs)
+      | _ -> Error (ParseError ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
 
 let accept token_type tokens  = 
   match tokens with [] -> None, tokens
@@ -139,9 +147,9 @@ and parse_primary expr tokens =
       | Ident x -> 
         let next = peek xs in (match next with 
           | Some t -> (match t.token_type with 
-            | Punctuation LParen -> (Ast.FunctionCall{target = Ast.Var x; args = Ast.String("arg")}, xs)
+            | Punctuation LParen -> parse_fun_call_expr x xs
             | _ -> (Ast.Name x, xs))
-          | _ -> (Ast.Name x, xs)) 
+          | None -> (Ast.Name x, xs)) 
       | Keywords Nil -> Ast.Nil, xs 
       | Punctuation LParen -> 
         let expr, rest = parse_expr expr xs in 
@@ -153,21 +161,26 @@ and parse_primary expr tokens =
       | EOF -> expr, []
       | _ -> expr, tokens
 
-let parse_expr__ tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
+and parse_fun_call_expr func_name tokens = 
+  let params_result = parse_params tokens in match params_result with 
+    Ok (params, tokens_after_params) -> 
+      (Ast.FunctionCall {
+        target = Ast.Name func_name; 
+        args = List.rev params;
+      }, tokens_after_params) 
+  | Error e -> raise e
 
-let consume tokens = match tokens with [] -> None, [] | x :: xs -> Some x,  xs
-
-let parse_assignment name tokens = 
+and parse_assignment name tokens = 
   match tokens with 
     | [] | [_] -> Error (ParseError ("unexpected end of file assigning identifier \"" ^ name ^ "\""))
     | _ -> let expr, rest = parse_expr Ast.Nil tokens in 
     Ok (Ast.AssignStmt{ident = name; right = expr}, rest)
 
-let parse_return_stmt tokens = 
+and parse_return_stmt tokens = 
   let expr, rest = parse_expr Ast.Nil tokens in 
     Ok (Ast.LastStmt (ReturnStmt (Some expr)), rest)
 
-    let parse_params tokens = 
+and parse_params tokens = 
   let next, rest = consume tokens in match next with 
     None -> Error (ParseError ("unexpected end of file parsing parameter list"))
   | Some token -> match token.token_type with 
@@ -177,8 +190,14 @@ let parse_return_stmt tokens =
         | x :: xs -> match x.token_type with
           Punctuation RParen -> Ok (params, xs)
           | Ident _ -> 
-              let param, rest = parse_expr Ast.Nil (x :: xs) in 
-                parse_params_aux (param :: params) rest
+              let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in 
+              let next = peek toks_after_ident in (match next with 
+                  None -> Error (ParseError ("expected comma or closing parenthesis after identifier " ^ stringify_token x))
+                | Some t -> (match t.token_type with 
+                    Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
+                  | _ -> 
+                    let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
+                      parse_params_aux (param :: params) xs)) 
           | Punctuation Comma -> 
             let next = peek xs in (match next with
                 None -> Error (ParseError ("expected end of file in parameter list after comma " ^ stringify_token x))
@@ -190,15 +209,7 @@ let parse_return_stmt tokens =
         parse_params_aux [] rest
     | _ -> Error (ParseError ("expected openining parenthesis, got " ^ stringify_token token))
 
-let expect token_type_name token_type tokens =
-  match tokens with 
-    [] -> Error (ParseError ("unexpected end of file, expected token type " ^ token_type_name))
-    | x :: xs  -> match x with 
-      | x when x.token_type = token_type -> Ok (Some x, xs)
-      | x when get_tok_type x.token_type = token_type -> Ok (Some x, xs)
-      | _ -> Error (ParseError ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
-
-let rec parse_block tokens = 
+and parse_block tokens = 
   let rec parse_block_aux block tokens = 
     match tokens with 
       | [] -> Error (ParseError "unexpected end of file parsing block") 
@@ -228,7 +239,7 @@ and parse_stmt tokens =
           let next = peek xs in (match next with 
           | Some t -> (match t.token_type with
             | BinOp Assign -> parse_assignment name (List.tl xs)
-            (* | Punctuation RParen -> parse_fun_call tokens *)
+            | Punctuation LParen -> parse_fun_call_stmt name xs
             | _ -> Error (ParseError ("unexpected token " ^ stringify_token t)))
           | None -> Error (ParseError ("hanging indentifier " ^ stringify_token x))) 
       | _ -> Error (ParseError ("unexpected token: " ^ stringify_token x))
@@ -280,3 +291,13 @@ and parse_function_def tokens =
       block = func_body_block
     }
   }, tokens_after_body)
+
+and parse_fun_call_stmt func_name tokens = 
+  let* params, tokens_after_params = parse_params tokens in 
+    Ok (Ast.FunctionCall {
+      target = Ast.Name func_name; 
+      args = List.rev params;
+    }, tokens_after_params) 
+
+and parse_program tokens = 
+  parse_block tokens

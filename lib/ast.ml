@@ -31,17 +31,13 @@ type expr =
   and name = string
   and fun_call = {
     target: prefix_expr;
-    args: args;
+    args: expr list;
   }
   
   and prefix_expr = 
-    | Var of string
+    | Name of name
     | FunctionCall of fun_call
-    | Grouping
-
-  and args = 
-    | ExprList of expr list
-    | String of string
+    | Grouping of expr
 
 and stmt = 
   | AssignStmt of {
@@ -154,6 +150,7 @@ let make_optional_if if_stmt =
       | _ -> Some f
 
 let stmt_to_if stmt = match stmt with IfStmt f -> Some f | _ -> None
+
 let stmt_to_func stmt = match stmt with Function f -> Some f | _ -> None
 
 let rec stringify_block block = 
@@ -179,6 +176,7 @@ and stringify_stmt stmt =
     | WhileLoop wl -> "While(condition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
     | IfStmt i -> stringify_if_stmt i
     | Function f -> stringify_function f
+    | FunctionCall fc -> stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args)
     | _ -> ""
 
 and stringify_if_stmt_aux if_stmt level = 
@@ -189,5 +187,11 @@ and stringify_if_stmt_aux if_stmt level =
   indent ^ "IF(\n" ^ indent ^ "condition = " ^ stringify_expr if_stmt.condition ^ indent ^ then_str ^ else_if_str ^ else_str ^ "\nEND)"
 and stringify_if_stmt if_stmt =
   stringify_if_stmt_aux if_stmt 0
+
+ 
+and stringify_prefix_expr(prefix_expr: prefix_expr): string = match prefix_expr with 
+  | Name n -> "Name(\"" ^ n ^ "\")"
+  | FunctionCall fc -> stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args) 
+  | Grouping g -> stringify_expr g
 
 
