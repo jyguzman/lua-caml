@@ -10,6 +10,10 @@ let ( let* ) r f = match r with
   Ok v -> f v 
 | Error e -> Error e
 
+let ( let^ ) o f = match o with 
+  Some v -> f v 
+| None -> None
+
 let raise_invalid_token token extra = 
   let name, lexeme, line, col = token.name, token.lexeme, token.line, token.col in
   let details = String.concat "" [name; ", '"; lexeme; "' line "; string_of_int line; ", col "; string_of_int col] in
@@ -19,6 +23,12 @@ let raise_invalid_token token extra =
 let look_ahead tokens n = List.nth_opt tokens n
 
 let peek tokens = match tokens with [] -> None | x :: _ -> Some x
+
+let accept token_type tokens  = 
+  match tokens with [] -> None, tokens
+  | x :: xs -> match x with 
+    | x when token_type = x.token_type -> Some x, xs
+    | _ -> None, tokens
 
 let rec parse_expr expr tokens = 
   parse_and_or expr tokens
@@ -147,11 +157,7 @@ and parse_primary expr tokens =
       | EOF -> expr, []
       | _ -> expr, tokens
 
-let expect token expected_type = token.token_type == expected_type
-
 let parse_expr__ tokens = let expr, _ = parse_expr Ast.Nil tokens in expr
-
-let make_block stmts last_stmt = {Ast.stmts = stmts; Ast.last_stmt = last_stmt}
 
 let consume tokens = match tokens with [] -> None, [] | x :: xs -> Some x,  xs
 
@@ -188,13 +194,20 @@ let parse_params tokens =
         parse_params_aux [] rest
     | _ -> Error (ParseError ("expected openining parenthesis, got " ^ stringify_token token))
 
+let expect token_type_name token_type tokens =
+  match tokens with 
+    [] -> Error (ParseError ("unexpected end of file, expected token type " ^ token_type_name))
+    | x :: xs  -> match x with 
+      | x when token_type = x.token_type -> Ok (Some x, xs)
+      | _ -> Error (ParseError ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
+
 let rec parse_block tokens = 
   let rec parse_block_aux block tokens = 
     match tokens with 
       | [] -> Error (ParseError "unexpected end of file parsing block") 
       | x :: xs -> match x.token_type with 
-          EOF -> Ok(block, xs)
-          | Keywords End | Keywords Elseif | Keywords Else -> Ok(block, x :: xs)
+          EOF | Keywords End -> Ok(block, xs)
+           | Keywords Elseif | Keywords Else -> Ok(block, x :: xs)
         | _ -> 
           let* stmt, rest = parse_stmt tokens in 
             let new_block = match stmt with 
@@ -242,25 +255,31 @@ and parse_while_loop tokens =
       | _ -> Error (ParseError ("expected 'do' after while condition, got " ^ stringify_token x))
 
 and parse_if_stmt tokens = 
-  let condition, rest = parse_expr Ast.Nil tokens in match rest with 
-    [] -> Error (ParseError ("unexpected end of file after if condition"))
-    | x :: xs -> (match x.token_type with
-      Keywords Then -> 
-        let* then_block, tokens_after_then_block = parse_block xs in 
-        (match tokens_after_then_block with 
-          [] -> Error (ParseError ("unexpected end of file after then block " ^ stringify_token x))
-          | x :: xs -> (match x.token_type with 
-            | Keywords Else -> 
-              let* else_block, tokens_after_else = parse_block xs in 
-                Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-                elseif = None; else_block = Some else_block}, tokens_after_else)
-                
-            | Keywords End -> 
-              Ok(Ast.IfStmt{condition = condition; then_block = then_block; 
-                elseif = None; else_block = None}, xs)
+  let condition, after_condition = parse_expr Ast.Nil tokens in 
+  let* _, after_then = expect "THEN" (Keywords Then) after_condition in 
+  let* then_block, tokens_after_then_block = parse_block after_then in
 
-            | _ -> Error (ParseError ("unexpected token " ^ stringify_token x))))
-      | _ -> Error (ParseError ("expected then after if condition, got " ^ stringify_token x)))
+  let maybe_else_token = accept (Keywords Else) tokens_after_then_block in 
+  let* else_block, tokens_after_else_block = match maybe_else_token with 
+      None, _ -> Ok ({Ast.stmts=[]; last_stmt = None}, tokens_after_then_block) 
+    | Some _, after_else -> parse_block after_else
+  in 
+  let else_block = Ast.make_optional else_block in
+
+  let maybe_elseif_token = accept (Keywords Elseif) tokens_after_else_block in 
+  let* else_if_block, tokens_after_else_if_block = match maybe_elseif_token with 
+      None, _ -> Ok (Ast.IfStmt{condition = Ast.Nil; 
+        then_block = {Ast.stmts=[]; last_stmt = None}; 
+        elseif = None; else_block = None}, tokens_after_else_block) 
+    | Some _, after_elseif -> parse_if_stmt after_elseif 
+  in 
+  let else_if_block = Ast.make_optional_if (Ast.stmt_to_if else_if_block) in 
+
+  Ok(Ast.IfStmt{condition = condition; 
+        then_block = then_block; 
+        elseif = else_if_block; 
+        else_block = else_block}, 
+        tokens_after_else_if_block)
       
 and parse_function_def tokens =
   match tokens with 

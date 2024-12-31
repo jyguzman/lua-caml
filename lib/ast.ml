@@ -135,6 +135,23 @@ let stringify_expr expr =
   in 
     stringify_expr expr 0
 
+let make_optional block = 
+  if List.length block.stmts = 0 && block.last_stmt = None then None
+  else Some block
+
+let make_optional_if if_stmt =
+  match if_stmt with 
+    | None -> None
+    | Some f -> 
+      match f with
+        f when f = {condition = Nil; 
+          then_block = {stmts=[]; last_stmt = None}; 
+          elseif = None; 
+          else_block = None} -> None 
+      | _ -> Some f
+
+let stmt_to_if stmt = match stmt with IfStmt f -> Some f | _ -> None
+
 let rec stringify_block block = 
   let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
   let stmt_strings = List.map stringify_stmt block.stmts in 
