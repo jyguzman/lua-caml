@@ -17,8 +17,7 @@ let raise_invalid_token token extra =
 
 let peek tokens = match tokens with [] -> None | x :: _ -> Some x
 
-let consume tokens = 
-match tokens with [] -> None, [] | x :: xs -> Some x,  xs
+let consume tokens = match tokens with [] -> None, [] | x :: xs -> Some x,  xs
 
 let expect token_type_name token_type tokens =
   match tokens with 
@@ -27,6 +26,10 @@ let expect token_type_name token_type tokens =
       | x when x.token_type = token_type -> Ok (Some x, xs)
       | x when get_tok_type x.token_type = token_type -> Ok (Some x, xs)
       | _ -> Error (ParseError ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
+
+let peek_res tokens msg = match tokens with 
+  [] -> Error (ParseError msg)
+  | x :: xs -> Ok (Some x, xs)
 
 let accept token_type tokens  = 
   match tokens with [] -> None, tokens
@@ -185,26 +188,28 @@ and parse_params tokens =
     None -> Error (ParseError ("unexpected end of file parsing parameter list"))
   | Some token -> match token.token_type with 
     Punctuation LParen -> 
-      let rec parse_params_aux params tokens = match tokens with
+      let rec parse_params_aux params tokens = 
+        match tokens with
           [] -> Error (ParseError ("unexpected end of file parsing parameter list after " ^ stringify_token token))
         | x :: xs -> match x.token_type with
           Punctuation RParen -> Ok (params, xs)
           | Ident _ -> 
-              let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in 
-              let next = peek toks_after_ident in (match next with 
-                  None -> Error (ParseError ("expected comma or closing parenthesis after identifier " ^ stringify_token x))
-                | Some t -> (match t.token_type with 
-                    Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
-                  | _ -> 
-                    let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
-                      parse_params_aux (param :: params) xs)) 
+            let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in 
+            let next = peek toks_after_ident in (match next with 
+                None -> Error (ParseError ("expected comma or closing parenthesis after identifier " ^ stringify_token x))
+              | Some t -> (match t.token_type with 
+                  Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
+                | _ -> 
+                  let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
+                    parse_params_aux (param :: params) toks_after_ident)) 
           | Punctuation Comma -> 
             let next = peek xs in (match next with
                 None -> Error (ParseError ("expected end of file in parameter list after comma " ^ stringify_token x))
               | Some t -> match t.token_type with 
                   Ident _ -> parse_params_aux params xs
                   | _ -> Error (ParseError ("expected identifier param after comma " ^ stringify_token x)))
-          | _ -> Error (ParseError ("expected identifier after " ^ stringify_token token))
+          | _ -> 
+            Error (ParseError ("expected identifier after " ^ stringify_token token))
       in 
         parse_params_aux [] rest
     | _ -> Error (ParseError ("expected openining parenthesis, got " ^ stringify_token token))

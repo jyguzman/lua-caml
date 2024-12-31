@@ -34,7 +34,7 @@ print_string expr_string;;  *)
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
 (* let source = "x = 50 y = 100 z = 100 return x + y" in *)
 let source = "
-  square(x + 5, y + 2, z,)
+  square(x + 5, y + 2, z)
 " in 
 (* let source = 
   "while x == 50 do
@@ -92,6 +92,6 @@ match params_res with
 
 let prog = Parser.parse_program tokens in
 match prog with 
-  | Ok (prog, _) -> print_string ("reaaal block:\n\n\n\n" ^ Ast.stringify_block prog) 
+  | Ok (prog, _) -> print_string ("reaaal block:\n" ^ Ast.stringify_block prog) 
   | Error e -> raise e
 ;;
