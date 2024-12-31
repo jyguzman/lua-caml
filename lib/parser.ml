@@ -193,23 +193,21 @@ and parse_params tokens =
           [] -> Error (ParseError ("unexpected end of file parsing parameter list after " ^ stringify_token token))
         | x :: xs -> match x.token_type with
           Punctuation RParen -> Ok (params, xs)
-          | Ident _ -> 
+          | Punctuation Comma -> 
+            let none_err_msg = "unexpected end of file in parameter list after comma " ^ stringify_token x in 
+            let* next = peek_res xs none_err_msg in (match next.token_type with 
+                Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
+              | _ -> parse_params_aux params xs)
+          | _ -> 
             let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in
-            let err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
-            let* next = peek_res toks_after_ident err_msg in (match next.token_type with 
+            let none_err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
+            let* next = peek_res toks_after_ident none_err_msg in (match next.token_type with 
               Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
             | _ -> let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
                 parse_params_aux (param :: params) toks_after_ident)
-          | Punctuation Comma -> 
-            let err_msg = "expected end of file in parameter list after comma " ^ stringify_token x in 
-            let* next = peek_res xs err_msg in (match next.token_type with 
-              Ident _ -> parse_params_aux params xs
-            | _ -> Error (ParseError ("expected identifier param after comma " ^ stringify_token x)))
-          | _ -> 
-            Error (ParseError ("expected identifier after " ^ stringify_token token ^ " but got " ^ stringify_token x))
       in 
         parse_params_aux [] rest
-    | _ -> Error (ParseError ("expected openining parenthesis, got " ^ stringify_token token))
+    | _ -> Error (ParseError ("expected opening parenthesis, got " ^ stringify_token token))
 
 and parse_block tokens = 
   let rec parse_block_aux block tokens = 
