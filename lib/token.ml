@@ -58,8 +58,8 @@ type token = {
 
 let stringify_token token = String.concat "" [
   String.uppercase_ascii token.name; "(\""; 
-  token.lexeme ^ "\" "; 
-  string_of_int token.line ^ ":" ^ string_of_int token.col; ")"
+  token.lexeme ^ "\" line "; 
+  string_of_int token.line ^ ", col " ^ string_of_int token.col; ")"
 ]
 
 let rec stringify_tokens = function 

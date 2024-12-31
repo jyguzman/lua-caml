@@ -8,6 +8,7 @@ exception ParseError of string;;
 let ( let* ) r f = match r with 
   Ok v -> f v 
 | Error e -> Error e
+  
 
 let raise_invalid_token token extra = 
   let name, lexeme, line, col = token.name, token.lexeme, token.line, token.col in
@@ -233,20 +234,13 @@ and parse_stmt tokens =
     )
 
 and parse_while_loop tokens = 
-  let condition, rest = parse_expr Ast.Nil tokens in match rest with 
-    [] -> Error (ParseError ("unexpected end of file after while condition"))
-    | x :: xs -> match x.token_type with 
-      Keywords Do -> 
-        let* while_block, tokens_after_block = parse_block xs in 
-        (match tokens_after_block with 
-          [] -> Error (ParseError ("unexpected end of file after while loop after token " ^ stringify_token x))
-          | x :: xs -> (match x.token_type with
-            Keywords End -> Ok (Ast.WhileLoop {
-              condition = condition; 
-              body = while_block
-            }, xs)
-            | _ -> Error (ParseError ("expected 'end' after while loop, got " ^ stringify_token x))))
-      | _ -> Error (ParseError ("expected 'do' after while condition, got " ^ stringify_token x))
+  let condition, tokens_after_condition = parse_expr Ast.Nil tokens in 
+  let* _, after_do = expect "DO" (Keywords Do) tokens_after_condition in
+  let* while_block, tokens_after_while_block = parse_block after_do in
+      Ok (Ast.WhileLoop {
+        condition = condition; 
+        body = while_block
+      }, tokens_after_while_block) 
 
 and parse_if_stmt tokens = 
   let condition, tokens_after_condition = parse_expr Ast.Nil tokens in 
@@ -255,16 +249,14 @@ and parse_if_stmt tokens =
 
   let maybe_else_token = accept (Keywords Else) tokens_after_then_block in 
   let* else_block, tokens_after_else_block = match maybe_else_token with 
-      None, _ -> Ok ( {Ast.stmts=[]; last_stmt = None}, tokens_after_then_block) 
+      None, _ -> Ok (Ast.empty_block, tokens_after_then_block) 
     | Some _, after_else -> parse_block after_else 
   in 
   let else_block = Ast.make_optional else_block in
 
   let maybe_elseif_token = accept (Keywords Elseif) tokens_after_else_block in 
   let* else_if_block, tokens_after_else_if_block = match maybe_elseif_token with 
-      None, _ -> Ok (Ast.IfStmt{condition = Ast.Nil; 
-        then_block = {Ast.stmts=[]; last_stmt = None}; 
-        elseif = None; else_block = None}, tokens_after_else_block) 
+      None, _ -> Ok (Ast.empty_if, tokens_after_else_block) 
     | Some _, after_elseif -> parse_if_stmt after_elseif 
   in 
   let else_if_block = Ast.make_optional_if (Ast.stmt_to_if else_if_block) in 

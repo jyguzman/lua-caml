@@ -33,8 +33,8 @@ print_string expr_string;;  *)
 
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
 (* let source = "x = 50 y = 100 z = 100 return x + y" in *)
-(* let source = 
-  "while x == 50 do 
+let source = 
+  "while x == 50 do
     if x ~= 50 then 
       if disney == good then 
         boss = \"bossman\"
@@ -49,8 +49,8 @@ print_string expr_string;;  *)
         bangbang = 1000
       end
     end
-  end" in *)
-let source = 
+  end" in
+(* let source = 
   "if thing == thong then 
     first = one
   elseif fatoi == 10000 then 
@@ -62,7 +62,7 @@ let source =
     second = two
   else
     third = three
-  end" in
+  end" in *)
 let tokens = Lexer.tokenize_source source in 
 (* let tok_string = (Token.stringify_tokens tokens ^ "\r\n") in 
 let _ = print_string tok_string in *)
