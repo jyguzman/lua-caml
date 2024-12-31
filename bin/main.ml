@@ -33,7 +33,12 @@ print_string expr_string;;  *)
 
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
 (* let source = "x = 50 y = 100 z = 100 return x + y" in *)
-let source = 
+let source = "
+  function add(x, y) 
+    return x + y
+  end
+" in 
+(* let source = 
   "while x == 50 do
     if x ~= 50 then 
       if disney == good then 
@@ -49,7 +54,7 @@ let source =
         bangbang = 1000
       end
     end
-  end" in
+  end" in *)
 (* let source = 
   "if thing == thong then 
     first = one

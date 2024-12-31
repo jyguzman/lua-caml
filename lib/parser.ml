@@ -194,7 +194,8 @@ let expect token_type_name token_type tokens =
   match tokens with 
     [] -> Error (ParseError ("unexpected end of file, expected token type " ^ token_type_name))
     | x :: xs  -> match x with 
-      | x when token_type = x.token_type -> Ok (Some x, xs)
+      | x when x.token_type = token_type -> Ok (Some x, xs)
+      | x when get_tok_type x.token_type = token_type -> Ok (Some x, xs)
       | _ -> Error (ParseError ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
 
 let rec parse_block tokens = 
@@ -268,17 +269,14 @@ and parse_if_stmt tokens =
         tokens_after_else_if_block)
       
 and parse_function_def tokens =
-  match tokens with 
-    | [] -> Error (ParseError "unexpected end of file while defining function")
-    | x :: xs -> match x.token_type with 
-      Ident name ->  
-        let* params, tokens_after_params = parse_params xs in 
-        let* func_body_block, tokens_after_body = parse_block tokens_after_params in
-          Ok(Ast.Function {
-                name = name; 
-                body = {
-                  params = params;
-                  block = func_body_block
-                }
-              }, List.tl tokens_after_body)
-      | _ -> Error (ParseError ("expected identifier for function, got " ^ stringify_token x))
+  let* ident, tokens_after_ident = expect "IDENT" (TIdent) tokens in 
+  let name = match ident with Some i -> i.lexeme | None -> "" in 
+  let* params, tokens_after_params = parse_params tokens_after_ident in 
+  let* func_body_block, tokens_after_body = parse_block tokens_after_params in 
+  Ok (Ast.Function {
+    name = name; 
+    body = {
+      params = params;
+      block = func_body_block
+    }
+  }, tokens_after_body)

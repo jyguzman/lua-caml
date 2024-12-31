@@ -41,6 +41,7 @@ type token_type =
   | Float of float
   | String of string
   | Ident of string
+  | TIdent
   | Caret
   | Minus
   | BinOp of bin_op_token_type
@@ -48,6 +49,10 @@ type token_type =
   | Punctuation of punctuation
   | EOF
 
+let get_tok_type token_type = match token_type with 
+  | Ident _ -> TIdent
+  | _ -> token_type
+  
 type token = {
   name: string;
   token_type: token_type;
@@ -66,7 +71,6 @@ let rec stringify_tokens = function
   | [] -> ""
   | [x] -> stringify_token x
   | x :: xs -> stringify_token x ^ ", " ^ stringify_tokens xs;;
-
 
 module Token = struct 
   let make name token_type lexeme line col = {name = name; token_type = token_type; lexeme = lexeme; line = line; col = col}

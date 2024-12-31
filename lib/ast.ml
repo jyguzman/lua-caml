@@ -59,7 +59,7 @@ and stmt =
   | LastStmt of last_stmt
 
   and func = {
-    name: string;
+    name: name;
     body: func_body
   }
   
@@ -154,11 +154,18 @@ let make_optional_if if_stmt =
       | _ -> Some f
 
 let stmt_to_if stmt = match stmt with IfStmt f -> Some f | _ -> None
+let stmt_to_func stmt = match stmt with Function f -> Some f | _ -> None
 
 let rec stringify_block block = 
   let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
   let stmt_strings = List.map stringify_stmt block.stmts in 
   "[" ^ String.concat "," (List.rev_append stmt_strings ret_stmt_str) ^ "]"
+
+and stringify_function func = 
+  let name, params, block = func.name, func.body.params, func.body.block in
+  let params_str = List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr params) in
+  let block_str = stringify_block block in  
+  name ^ "(params: " ^ params_str ^ "body: " ^ block_str ^ ")"
 
 and stringify_stmt stmt = 
   match stmt with 
@@ -171,6 +178,7 @@ and stringify_stmt stmt =
     | LastStmt Break -> "Break()"
     | WhileLoop wl -> "While(condition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
     | IfStmt i -> stringify_if_stmt i
+    | Function f -> stringify_function f
     | _ -> ""
 
 and stringify_if_stmt_aux if_stmt level = 
