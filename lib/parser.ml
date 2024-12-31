@@ -29,7 +29,7 @@ let expect token_type_name token_type tokens =
 
 let peek_res tokens msg = match tokens with 
   [] -> Error (ParseError msg)
-  | x :: xs -> Ok (Some x, xs)
+  | x :: _ -> Ok x
 
 let accept token_type tokens  = 
   match tokens with [] -> None, tokens
@@ -194,22 +194,19 @@ and parse_params tokens =
         | x :: xs -> match x.token_type with
           Punctuation RParen -> Ok (params, xs)
           | Ident _ -> 
-            let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in 
-            let next = peek toks_after_ident in (match next with 
-                None -> Error (ParseError ("expected comma or closing parenthesis after identifier " ^ stringify_token x))
-              | Some t -> (match t.token_type with 
-                  Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
-                | _ -> 
-                  let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
-                    parse_params_aux (param :: params) toks_after_ident)) 
+            let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in
+            let err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
+            let* next = peek_res toks_after_ident err_msg in (match next.token_type with 
+              Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
+            | _ -> let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
+                parse_params_aux (param :: params) toks_after_ident)
           | Punctuation Comma -> 
-            let next = peek xs in (match next with
-                None -> Error (ParseError ("expected end of file in parameter list after comma " ^ stringify_token x))
-              | Some t -> match t.token_type with 
-                  Ident _ -> parse_params_aux params xs
-                  | _ -> Error (ParseError ("expected identifier param after comma " ^ stringify_token x)))
+            let err_msg = "expected end of file in parameter list after comma " ^ stringify_token x in 
+            let* next = peek_res xs err_msg in (match next.token_type with 
+              Ident _ -> parse_params_aux params xs
+            | _ -> Error (ParseError ("expected identifier param after comma " ^ stringify_token x)))
           | _ -> 
-            Error (ParseError ("expected identifier after " ^ stringify_token token))
+            Error (ParseError ("expected identifier after " ^ stringify_token token ^ " but got " ^ stringify_token x))
       in 
         parse_params_aux [] rest
     | _ -> Error (ParseError ("expected openining parenthesis, got " ^ stringify_token token))
