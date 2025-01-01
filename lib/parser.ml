@@ -173,11 +173,11 @@ and parse_fun_call_expr func_name tokens =
       }, tokens_after_params) 
   | Error e -> raise e
 
-and parse_assignment name tokens = 
+and parse_assignment name tokens is_local = 
   match tokens with 
     | [] | [_] -> Error (ParseError ("unexpected end of file assigning identifier \"" ^ name ^ "\""))
     | _ -> let expr, rest = parse_expr Ast.Nil tokens in 
-    Ok (Ast.AssignStmt{ident = name; right = expr}, rest)
+    Ok (Ast.AssignStmt{ident = name; is_local = is_local; right = expr}, rest)
 
 and parse_return_stmt tokens = 
   let expr, rest = parse_expr Ast.Nil tokens in 
@@ -214,8 +214,8 @@ and parse_block tokens =
     match tokens with 
       | [] -> Error (ParseError "unexpected end of file parsing block") 
       | x :: xs -> match x.token_type with 
-          EOF | Keywords End -> Ok(block, xs)
-           | Keywords Elseif | Keywords Else -> Ok(block, x :: xs)
+          EOF | Keywords End -> Ok({block with Ast.stmts = List.rev block.Ast.stmts}, xs)
+           | Keywords Elseif | Keywords Else -> Ok({block with Ast.stmts = List.rev block.Ast.stmts}, x :: xs)
         | _ -> 
           let* stmt, rest = parse_stmt tokens in 
             let new_block = match stmt with 
@@ -235,10 +235,14 @@ and parse_stmt tokens =
       | Keywords If -> parse_if_stmt xs
       | Keywords Return -> parse_return_stmt xs
       | Keywords Break -> Ok (Ast.LastStmt Ast.Break, xs)
+      | Keywords Local -> 
+        let* ident, after_ident = expect "IDENT" (TIdent) xs in 
+          let name = match ident with Some v -> v.lexeme | None -> "" in
+            parse_assignment name after_ident true
       | Ident name -> 
           let next = peek xs in (match next with 
           | Some t -> (match t.token_type with
-            | BinOp Assign -> parse_assignment name (List.tl xs)
+            | BinOp Assign -> parse_assignment name (List.tl xs) false
             | Punctuation LParen -> parse_fun_call_stmt name xs
             | _ -> Error (ParseError ("unexpected token " ^ stringify_token t)))
           | None -> Error (ParseError ("hanging indentifier " ^ stringify_token x))) 
@@ -287,7 +291,7 @@ and parse_function_def tokens =
   Ok (Ast.Function {
     name = name; 
     body = {
-      params = params;
+      params = List.rev params;
       block = func_body_block
     }
   }, tokens_after_body)

@@ -1,3 +1,10 @@
+type typ = 
+  | TNumber 
+  | TString
+  | TBoolean
+  | TNil 
+  | TTable of typ * typ
+
 type expr = 
   | Nil 
   | Int of int
@@ -42,14 +49,12 @@ type expr =
 and stmt = 
   | AssignStmt of {
     ident: string;
+    is_local: bool;
     right: expr;
   }
   | FunctionCall of fun_call
   | DoBlock of block 
-  | WhileLoop of {
-    condition: expr;
-    body: block
-  }
+  | WhileLoop of wl
   | Function of func
   | IfStmt of if_stmt
   | LastStmt of last_stmt
@@ -62,6 +67,11 @@ and stmt =
   and func_body = {
     params: expr list;
     block: block
+  }
+
+  and wl = {
+    condition: expr;
+    body: block;
   }
 
   and if_stmt = {
@@ -109,7 +119,7 @@ let stringify_expr expr =
           let negated = "-" ^ no_indent in indent ^ negated
       | Grouping x -> "Grouping(" ^ (stringify_expr x level) ^ ")"
       | Boolean x -> "Boolean(" ^ if x then "true" else "false" ^ ")"
-      | Name x -> "Ident(\"" ^ x ^ "\")"
+      | Name x -> "Name(\"" ^ x ^ "\")"
       
       | Greater (l, r) -> stringify_bin_expr "Greater" l r
       | Geq (l, r) -> stringify_bin_expr "Geq" l r
@@ -166,7 +176,9 @@ and stringify_function func =
 
 and stringify_stmt stmt = 
   match stmt with 
-    | AssignStmt s -> "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ")"
+    | AssignStmt s -> 
+      let local_str = "local: " ^ if s.is_local then "true" else "false" in 
+        "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ", " ^ local_str ^ ")"
     | LastStmt ReturnStmt expr -> 
         let expr_string = match expr with 
           | Some e -> stringify_expr e

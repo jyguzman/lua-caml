@@ -1,0 +1,1 @@
+let print (s) = print_string(s ^ "\n")

@@ -26,8 +26,12 @@ type keywords =
   | Local
   | In
 
-type annotations = 
-  | Number | Bool | List
+type annotation = 
+  | Number 
+  | Bool 
+  | TString
+  | TNil
+  | Table of annotation * annotation 
 
 type punctuation = 
   | LBrace | RBrace 

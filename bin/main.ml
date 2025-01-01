@@ -1,5 +1,5 @@
 open Luacaml;;
-
+(* open Env;; *)
 (* let source = "
   function do_something(x: number): number 
     if x < 10 then
@@ -34,24 +34,24 @@ print_string expr_string;;  *)
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
 (* let source = "x = 50 y = 100 z = 100 return x + y" in *)
 let source = "
-  function add(x, y, z)
-    return x + y + z
-  end
-  square(x + 5, y + 2, 1 + 5)
+  x = 50
+  while x > 45 do 
+    x = x - 1 
+  end 
 " in 
 (* let source = 
   "while x == 50 do
-    if x ~= 50 then 
-      if disney == good then 
+    if x ~= 50  
+      if disney == good  
         boss = \"bossman\"
       else 
         boss_two = \"miniboss\"
       end
       break
     end
-    while thing == none do 
+    while thing == none  
       this = that
-      while bong == bing do 
+      while bong == bing  
         bangbang = 1000
       end
     end
@@ -95,6 +95,21 @@ match params_res with
 
 let prog = Parser.parse_program tokens in
 match prog with 
-  | Ok (prog, _) -> print_string ("reaaal block:\n" ^ Ast.stringify_block prog) 
-  | Error e -> raise e
+| Ok (prog, _) -> 
+    let _ = print_string ("reaaal block:\n" ^ Ast.stringify_block prog ^ "\n\n") in 
+    (match Eval.eval_program prog with 
+    | Ok () -> Ok ()
+    | Error e -> raise e)
+| Error e -> raise e
 ;;
+(* print_string "\nENV:\n"
+let env = Env.create 16;; 
+let new_env = Env.create 16;;
+Env.add env "x" (Ast.Int(5)); 
+let _ = Env.add env "hello" (Ast.String("world")) in 
+let _ = Env.add env "z" (Ast.Float(5.05)) in
+let _ = Env.add new_env "x" (Ast.String("bienowoeidnwe")) in 
+let thing = Env.resolve [env; new_env] "x" in 
+match thing with 
+      Ok v -> print_string (Ast.stringify_expr v)
+    | Error e -> raise e *)

@@ -8,7 +8,7 @@ let cut_first_n str n =
 module Keywords = Map.Make(String);;
 
 let keywords = Keywords.of_seq @@ List.to_seq [
-  ("function", Keywords Function); ("return", Keywords Return);
+  ("function", Keywords Function); 
 
   ("do", Keywords Do); ("end", Keywords End);
 
@@ -17,8 +17,7 @@ let keywords = Keywords.of_seq @@ List.to_seq [
   ("in", Keywords In);
 
   ("for", Keywords For); ("while", Keywords While); 
-  ("repeat", Keywords Repeat); ("until", Keywords Until);
-  ("break", Keywords Break);
+  ("return", Keywords Return); ("break", Keywords Break);
 
   ("if", Keywords If); ("else", Keywords Else); ("elseif", Keywords Elseif); ("then", Keywords Then);
 
@@ -164,7 +163,7 @@ let tokenize_source source =
         | '"' -> tokenize_string {lexer with current = skip} 
 
         | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' 
-        | ',' | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
+        | ':' | ',' | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
 
         | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
 
