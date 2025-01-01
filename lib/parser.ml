@@ -238,11 +238,14 @@ and parse_stmt tokens =
       | Keywords Local -> 
         let* ident, after_ident = expect "IDENT" (TIdent) xs in 
           let name = match ident with Some v -> v.lexeme | None -> "" in
-            parse_assignment name after_ident true
+          let* _, after_equal = expect "EQUAL" (BinOp Assign) after_ident in
+            parse_assignment name after_equal true
       | Ident name -> 
           let next = peek xs in (match next with 
           | Some t -> (match t.token_type with
-            | BinOp Assign -> parse_assignment name (List.tl xs) false
+            | BinOp Assign -> 
+              let* _, after_equal = expect "EQUAL" (BinOp Assign) xs in
+                parse_assignment name after_equal false
             | Punctuation LParen -> parse_fun_call_stmt name xs
             | _ -> Error (ParseError ("unexpected token " ^ stringify_token t)))
           | None -> Error (ParseError ("hanging indentifier " ^ stringify_token x))) 
