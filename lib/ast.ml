@@ -6,6 +6,7 @@ type typ =
   | TTable of typ * typ
 
 type expr = 
+  | Dummy
   | Nil 
   | Int of int
   | Float of float
@@ -91,6 +92,30 @@ and stmt =
     | ReturnStmt of expr option
     | Break 
 
+    let empty_block = {stmts=[]; last_stmt = None}
+    let empty_if = IfStmt{condition = Nil; then_block = empty_block; elseif = None; else_block = None}
+    
+    let make_optional block = 
+      if List.length block.stmts = 0 && block.last_stmt = None then None
+      else Some block
+    
+    let make_optional_if if_stmt =
+      match if_stmt with 
+        | None -> None
+        | Some f -> 
+          match f with
+            f when f = {condition = Nil; 
+              then_block = {stmts=[]; last_stmt = None}; 
+              elseif = None; 
+              else_block = None} -> None 
+          | _ -> Some f
+    
+    let stmt_to_if stmt = match stmt with IfStmt f -> Some f | _ -> None
+    
+    let stmt_to_func stmt = match stmt with Function f -> Some f | _ -> None
+    
+    let fc_to_expr fc = match fc with FunctionCall fc -> Some fc | _ -> None
+
 let rec repeat_str str n = 
   if n = 0 then "" else str ^ (repeat_str str (n-1)) 
 
@@ -104,22 +129,23 @@ let stringify_lit = function
   | _ -> ""
 
     
-let stringify_expr expr = 
-  let rec stringify_expr expr level = 
+let rec stringify_expr expr = 
+  let rec stringify_expr_aux expr level = 
     let indent = repeat_str "   " level in
     let stringify_bin_expr name l r  = 
-      name ^ "(" ^ (stringify_expr l (level + 1)) ^ ", " ^ (stringify_expr r (level + 1)) ^ ")"
+      name ^ "(" ^ (stringify_expr_aux l (level + 1)) ^ ", " ^ (stringify_expr_aux r (level + 1)) ^ ")"
     in
     match expr with 
       | Int x -> "Int(" ^ string_of_int x ^ ")"
       | Float x -> "Float(" ^ string_of_float x ^ ")"
       | String x -> "String(\"" ^ x ^ "\")"
-      | Negate x -> let str = (stringify_expr x level) in  
+      | Negate x -> let str = (stringify_expr_aux x level) in  
           let no_indent = Lexer.cut_first_n str (String.length indent) in
           let negated = "-" ^ no_indent in indent ^ negated
-      | Grouping x -> "Grouping(" ^ (stringify_expr x level) ^ ")"
+      | Grouping x -> "Grouping(" ^ (stringify_expr_aux x level) ^ ")"
       | Boolean x -> "Boolean(" ^ if x then "true" else "false" ^ ")"
       | Name x -> "Name(\"" ^ x ^ "\")"
+      | FunctionCall fc -> "FunCall(" ^ stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args) ^ ")"
       
       | Greater (l, r) -> stringify_bin_expr "Greater" l r
       | Geq (l, r) -> stringify_bin_expr "Geq" l r
@@ -139,34 +165,12 @@ let stringify_expr expr =
       | Power (l, r) ->  stringify_bin_expr "Power" l r
       | _ -> ""
   in 
-    stringify_expr expr 0
+    stringify_expr_aux expr 0
 
-let empty_block = {stmts=[]; last_stmt = None}
-let empty_if = IfStmt{condition = Nil; then_block = empty_block; elseif = None; else_block = None}
-
-let make_optional block = 
-  if List.length block.stmts = 0 && block.last_stmt = None then None
-  else Some block
-
-let make_optional_if if_stmt =
-  match if_stmt with 
-    | None -> None
-    | Some f -> 
-      match f with
-        f when f = {condition = Nil; 
-          then_block = {stmts=[]; last_stmt = None}; 
-          elseif = None; 
-          else_block = None} -> None 
-      | _ -> Some f
-
-let stmt_to_if stmt = match stmt with IfStmt f -> Some f | _ -> None
-
-let stmt_to_func stmt = match stmt with Function f -> Some f | _ -> None
-
-let rec stringify_block block = 
-  let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
+and stringify_block block = 
   let stmt_strings = List.map stringify_stmt block.stmts in 
-  "[" ^ String.concat "," (List.rev_append stmt_strings ret_stmt_str) ^ "]"
+  let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
+  "[" ^ String.concat "," (List.append stmt_strings ret_stmt_str) ^ "]"
 
 and stringify_function func = 
   let name, params, block = func.name, func.body.params, func.body.block in
@@ -188,7 +192,7 @@ and stringify_stmt stmt =
     | WhileLoop wl -> "While(condition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
     | IfStmt i -> stringify_if_stmt i
     | Function f -> stringify_function f
-    | FunctionCall fc -> stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args)
+    | FunctionCall fc -> "FunCall(" ^ stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args) ^ ")"
     | _ -> ""
 
 and stringify_if_stmt_aux if_stmt level = 

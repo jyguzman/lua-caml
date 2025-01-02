@@ -11,7 +11,7 @@ let raise_invalid_op msg = raise (InvalidOperation msg)
 let rec eval_expr envs expr = 
   match expr with
     | Int _ | Float _ | String _ | Boolean _ | Nil | Function _ -> Ok expr
-    | Name x -> Env.resolve envs x 
+    | Name x -> Env.resolve envs x
     | Grouping x -> eval_expr envs x
 
     | Concat (l, r) -> 
@@ -129,7 +129,6 @@ let rec eval_expr envs expr =
 
     | _ -> Ok (Float(0.0))
 
-
 and is_truthy expr envs = match expr with 
     Boolean x -> Ok x
   | Int x -> Ok (x > 0) 
@@ -138,6 +137,17 @@ and is_truthy expr envs = match expr with
   | Nil -> Ok false
   | _ -> let* expr = eval_expr envs expr in is_truthy expr envs
 
+
+let eval_expr_list sym_tbl exprs = 
+  let rec eval_expr_list_aux sym_tbl exprs evals = 
+    match exprs with 
+      [] -> Ok (List.rev evals) 
+    | x :: xs -> 
+      let* expr = eval_expr sym_tbl x in 
+        eval_expr_list_aux sym_tbl xs (expr :: exprs)
+  in 
+    eval_expr_list_aux sym_tbl exprs []
+
 let rec eval_program prog_block = 
   let env = Env.create 16 in 
     let* () = eval_block prog_block [env] in
@@ -145,8 +155,7 @@ let rec eval_program prog_block =
 
 and eval_block block envs =
   let* () = eval_stmts block.stmts envs in
-    let _ = List.iter Env.print envs in
-      Ok () 
+    Ok () 
 
 and eval_stmts stmts envs = match stmts with 
   [] -> Ok () 
@@ -154,12 +163,13 @@ and eval_stmts stmts envs = match stmts with
     let* () = eval_stmt x envs 
       in eval_stmts xs envs
       
-and eval_stmt stmt envs = match stmt with 
+and eval_stmt stmt sym_tbl = match stmt with 
   | AssignStmt s -> 
-    let* right = eval_expr envs s.right in
-      let _ = Env.add envs s.ident right s.is_local 
+    let* right = eval_expr sym_tbl s.right in
+      let _ = Env.add sym_tbl s.ident right s.is_local 
         in Ok ()
-  | WhileLoop wl -> eval_while_loop wl envs
+  | WhileLoop wl -> eval_while_loop wl sym_tbl
+  | FunctionCall fc -> eval_fun_call sym_tbl fc
   | _ -> Ok ()
 
 and eval_while_loop wl sym_table =
@@ -174,3 +184,16 @@ and eval_while_loop wl sym_table =
           Ok ()
   in 
     eval_while_loop_aux wl sym_table
+
+and eval_fun_call sym_tbl fc = 
+  let open Stdlib in 
+  match fc.target with 
+    | Name x -> 
+      (match x with
+        x when (Hashtbl.find_opt builtins x) != None -> 
+          let func = Hashtbl.find builtins x in
+          let* args = eval_expr_list sym_tbl fc.args in 
+          let _ = func args 
+            in Ok ()
+        | _ -> Error (InvalidOperation ("function '" ^ x ^ "' not defined"))) 
+    | Grouping _ | FunctionCall _ -> Error (InvalidOperation "Non-identifier function call not supported yet")
