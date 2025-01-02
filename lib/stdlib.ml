@@ -1,21 +1,20 @@
-open Ast;;
+type builtin = 
+  | Function of {
+    args: Ast.expr list;
+    return: Ast.expr;
+
+  }
 
 let print args = 
-  let rec print_aux args =
-    match args with 
-      [] -> ()
-      | x :: xs ->
-        let _ = (match x with 
-          Int x -> print_string (string_of_int x ^ "\n")
-        | Float x -> print_string (string_of_float x ^ "\n")
-        | String x -> print_string (x ^ "\n")
-        | Boolean x -> print_string (if x then "true" else "false")
-        | Nil -> print_string "nil"
-        | _ -> ())
-      in print_aux xs
-in
-  print_aux args
+  let str = List.fold_left (fun acc x -> acc ^ (Ast.stringify_lit x) ^ " ") "" args in 
+  let _ = print_endline str 
+    in Ast.Nil
 
+let to_string args = Ast.String(Ast.stringify_lit (List.hd args))
 
 let builtins = Hashtbl.create 16
 let () = Hashtbl.add builtins "print" print
+
+let builtins_list = [
+  ("print", print); ("string", to_string);
+]

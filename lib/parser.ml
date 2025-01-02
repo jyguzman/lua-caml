@@ -38,17 +38,20 @@ let accept token_type tokens  =
     | _ -> None, tokens
 
 let rec parse_expr expr tokens =
-  parse_and_or expr tokens 
+  parse_and_or expr tokens
 
 and parse_and_or expr tokens =
   let rec parse_expr_aux left remaining =
     match remaining with 
       | [] -> left, []
       | x :: xs -> 
-        let right, rest = parse_comparison Ast.Dummy xs in
         match x.token_type with 
-          | Keywords And -> parse_expr_aux (Ast.And (left, right)) rest
-          | Keywords Or -> parse_expr_aux (Ast.Or (left, right)) rest
+          | Keywords And -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.And (left, right)) rest
+          | Keywords Or -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.Or (left, right)) rest
           | _ -> left, remaining
   in 
     let left, remaining = parse_comparison expr tokens in 
@@ -60,29 +63,37 @@ and parse_comparison expr tokens =
     match remaining with 
       | [] -> left, []
       | x :: xs -> 
-        let right, rest = parse_concat Ast.Dummy xs in
-
         match x.token_type with 
-          | BinOp Equal -> parse_expr_aux (Ast.Equal (left, right)) rest
-          | BinOp Less -> parse_expr_aux (Ast.Less (left, right)) rest
-          | BinOp Leq -> parse_expr_aux (Ast.Leq (left, right)) rest
-          | BinOp Greater -> parse_expr_aux (Ast.Greater (left, right)) rest
-          | BinOp Geq -> parse_expr_aux (Ast.Geq (left, right)) rest
-          | BinOp NotEqual -> parse_expr_aux (Ast.Neq (left, right)) rest
+          | BinOp x -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              (match x with 
+                | Equal ->
+                    parse_expr_aux (Ast.Equal (left, right)) rest
+                | Less ->  
+                    parse_expr_aux (Ast.Less (left, right)) rest
+                | Leq -> 
+                    parse_expr_aux (Ast.Leq (left, right)) rest
+                | Greater ->         
+                    parse_expr_aux (Ast.Greater (left, right)) rest
+                | Geq ->         
+                    parse_expr_aux (Ast.Geq (left, right)) rest
+                | NotEqual ->         
+                    parse_expr_aux (Ast.Neq (left, right)) rest
+                | _ -> left, remaining)
           | _ -> left, remaining
     in 
       let left, remaining = parse_concat expr tokens in 
         parse_expr_aux left remaining
     
 and parse_concat expr tokens = 
-
   let rec parse_expr_aux left remaining =
     match remaining with 
       | [] -> left, []
       | x :: xs -> 
-        let right, rest = parse_term Ast.Dummy xs in
         match x.token_type with 
-          | BinOp DotDot -> parse_expr_aux (Ast.Concat (left, right)) rest
+          | BinOp DotDot ->         
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.Concat (left, right)) rest
           | _ -> left, remaining
   in 
     let left, remaining = parse_term expr tokens in 
@@ -94,57 +105,57 @@ and parse_term expr tokens =
     match remaining with 
       | [] -> left, []
       | x :: xs -> 
-        let right, rest = parse_factor Ast.Dummy xs in
-
         match x.token_type with 
-          | Minus -> parse_expr_aux (Ast.Subtract (left, right)) rest
-          | BinOp Plus -> parse_expr_aux (Ast.Add (left, right)) rest
+          | Minus -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.Subtract (left, right)) rest
+          | BinOp Plus -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.Add (left, right)) rest
           | _ -> left, remaining
   in 
     let left, remaining = parse_factor expr tokens in 
       parse_expr_aux left remaining
 
 and parse_factor expr tokens = 
-
   let rec parse_expr_aux left remaining =
     match remaining with 
       | [] -> left, []
       | x :: xs -> 
-        let right, rest = parse_unary Ast.Dummy xs in
-
         match x.token_type with 
-          | BinOp Star -> parse_expr_aux (Ast.Multiply (left, right)) rest
-          | BinOp Slash -> parse_expr_aux (Ast.Divide (left, right)) rest
+          | BinOp Star -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.Multiply (left, right)) rest
+          | BinOp Slash -> 
+            let right, rest = parse_comparison Ast.Nil xs in
+              parse_expr_aux (Ast.Divide (left, right)) rest
           | _ -> left, remaining
   in 
     let left, remaining = parse_unary expr tokens in 
       parse_expr_aux left remaining
 
 and parse_unary expr tokens = 
-
   match tokens with
       | [] -> expr, [] 
       | x :: xs -> 
         match x.token_type with 
           | Minus -> 
-              let right, rest = parse_power Ast.Dummy xs 
+              let right, rest = parse_power Ast.Nil xs 
                 in Ast.Negate right, rest
           | Keywords Not -> 
-              let right, rest =  parse_power Ast.Dummy xs 
+              let right, rest =  parse_power Ast.Nil xs 
                 in Ast.Not right, rest
           | _ -> 
             parse_power expr tokens
   
 and parse_power expr tokens = 
-
   let rec parse_expr_aux left remaining =
     match remaining with 
       | [] -> left, []
       | x :: xs -> 
-        let right, rest = parse_unary Ast.Dummy xs in
-
           match x.token_type with 
-            | Caret -> parse_expr_aux (Ast.Power (left, right)) rest
+            | Caret -> let right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.Power (left, right)) rest
             | _ -> left, remaining
   in 
     let left, remaining = parse_primary expr tokens in 
@@ -157,6 +168,8 @@ and parse_primary expr tokens =
       | Float x -> Ast.Float x, xs
       | Integer i -> Ast.Int i, xs
       | String x -> Ast.String x, xs
+      | Keywords True -> Ast.Boolean true, xs
+      | Keywords False -> Ast.Boolean false, xs
       | Ident i -> 
         let next = peek xs in (match next with 
           | Some t -> (match t.token_type with 
@@ -164,11 +177,8 @@ and parse_primary expr tokens =
               -> parse_fun_call_expr x (List.tl xs)
             |  _ -> (Ast.Name i, xs))
           | None -> (Ast.Name i, xs)) 
-      | Keywords Nil -> Ast.Dummy, xs 
+      | Keywords Nil -> Ast.Nil, xs 
       | Punctuation LParen -> 
-        if expr = Ast.Dummy then
-          expr, tokens
-        else
         let expr, rest = parse_expr expr xs in
           (match rest with 
             | [] -> raise_invalid_token x "expected closing parenthesis"
@@ -179,7 +189,7 @@ and parse_primary expr tokens =
       | _ -> expr, tokens
 
 and parse_fun_call_expr func_name tokens  =
-  let params_result = parse_params tokens in match params_result with 
+  let params_result = parse_args tokens in match params_result with 
     Ok (params, tokens_after_params) -> 
       let (fc: Ast.expr) = Ast.FunctionCall {
         target = Ast.Name func_name.lexeme; 
@@ -192,7 +202,7 @@ and parse_assignment name tokens is_local =
   match tokens with 
     | [] -> Error (ParseError ("unexpected end of file assigning identifier \"" ^ name ^ "\""))
     | x :: xs -> 
-      let expr, rest = parse_expr Ast.Nil (x :: xs) in 
+      let expr, rest = parse_expr Ast.Dummy (x :: xs) in 
     let stmt = Ast.AssignStmt{ident = name; is_local = is_local; right = expr} in 
     Ok (stmt, rest)
 
@@ -212,7 +222,7 @@ and parse_params tokens =
             Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
           | _ -> parse_params_aux params xs)
       | _ -> 
-        let param, toks_after_ident = parse_expr Ast.Nil (x :: xs) in
+        let param, toks_after_ident = parse_expr Ast.Dummy (x :: xs) in
         let none_err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
         let* next = peek_res toks_after_ident none_err_msg in (match next.token_type with 
           Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
@@ -221,6 +231,32 @@ and parse_params tokens =
             parse_params_aux (param :: params) toks_after_ident)
   in 
     parse_params_aux [] tokens
+
+
+  and parse_args tokens = 
+    let rec parse_args_aux params tokens = 
+      match tokens with
+        [] -> Error (ParseError ("unexpected end of file parsing parameter list"))
+      | x :: xs -> match x.token_type with
+          Punctuation RParen -> Ok (params, xs)
+        | Punctuation Comma -> 
+          let none_err_msg = "unexpected end of file in parameter list after comma " ^ stringify_token x in 
+          let* next = peek_res xs none_err_msg in (match next.token_type with 
+              Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
+            | _ -> parse_args_aux params xs)
+
+        | Ident i -> 
+          let (param: Ast.expr) = Ast.Name i in parse_args_aux (param :: params) xs
+        | _ -> 
+          let param, toks_after_arg = parse_expr Ast.Dummy (x :: xs) in
+          let none_err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
+          let* next = peek_res toks_after_arg none_err_msg in (match next.token_type with 
+            Punctuation RParen -> parse_args_aux (param :: params) toks_after_arg
+          | _ -> 
+            let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_arg in
+            parse_args_aux (param :: params) toks_after_arg)
+    in 
+      parse_args_aux [] tokens
 
 and parse_block tokens = 
   let rec parse_block_aux block tokens = 
@@ -315,7 +351,7 @@ and parse_function_def tokens =
   }, tokens_after_body)
 
 and parse_fun_call_stmt func_name tokens = 
-  let* params, tokens_after_params = parse_params tokens in
+  let* params, tokens_after_params = parse_args tokens in
   let func =  Ast.FunctionCall {
     target = Ast.Name func_name; 
     args = List.rev params;

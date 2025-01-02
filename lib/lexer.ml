@@ -63,7 +63,7 @@ let tokenize_string lexer =
       let c_str = String.make 1 c in
       let acc_new = acc ^ c_str in  
       let rest = cut_first_n lexer.current 1 in    
-      if c = '"' then 
+      if c = '"' || c = '\'' then 
         let lexer = {lexer with current = cut_first_n lexer.current 1} in (acc, lexer)
       else 
         tokenize_string {lexer with current = rest; col = lexer.col + 1} acc_new
@@ -131,8 +131,7 @@ let tokenize_char lexer c =
     | '<' -> if next = '=' then ("leq", BinOp Leq, "<=") else ("less", BinOp Less, "<")
     | '>' -> if next = '=' then ("geq", BinOp Geq, ">=") else ("greater", BinOp Greater, ">")
     | '=' -> if next = '=' then ("equal", BinOp Equal, "==") else ("assign", BinOp Assign, "=")
-    | '~' -> if next = '=' then ("notequal", BinOp NotEqual, "~=") 
-      else Tokenizer.raise_invalid_token "~" lexer.line lexer.col
+    | '~' -> if next = '=' then ("notequal", BinOp NotEqual, "~=") else Tokenizer.raise_invalid_token "~" lexer.line lexer.col
     | '.' -> if next = '.' then ("dotdot", BinOp DotDot, "..") else ("dot", BinOp Dot, ".")
 
     | '[' -> ("lbracket", Punctuation LBracket, "[") | ']' -> ("rbracket", Punctuation RBracket, "]")
@@ -160,10 +159,10 @@ let tokenize_source source =
 
         | 'a' .. 'z' | 'A' .. 'Z' -> tokenize_ident lexer 
 
-        | '"' -> tokenize_string {lexer with current = skip} 
+        | '"' | '\'' -> tokenize_string {lexer with current = skip} 
 
         | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' 
-        | ':' | ',' | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
+        | ';' | ':' | ',' | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c
 
         | '\n' -> {lexer with line = lexer.line + 1; col = 0; current = skip}
 

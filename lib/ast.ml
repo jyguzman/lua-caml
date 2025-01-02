@@ -121,9 +121,13 @@ let rec repeat_str str n =
 
 
 let stringify_lit = function 
-  | String x -> "\""^x^"\""
+  | String x -> x
   | Int x -> string_of_int x 
-  | Float x -> string_of_float x
+  | Float x -> 
+    if Float.equal (Float.floor x) x then
+      Printf.sprintf "%.1f" x
+    else
+      Printf.sprintf "%g" x
   | Boolean x -> if x = true then "true" else "false"
   | Nil -> "nil"
   | _ -> ""
@@ -143,7 +147,7 @@ let rec stringify_expr expr =
           let no_indent = Lexer.cut_first_n str (String.length indent) in
           let negated = "-" ^ no_indent in indent ^ negated
       | Grouping x -> "Grouping(" ^ (stringify_expr_aux x level) ^ ")"
-      | Boolean x -> "Boolean(" ^ if x then "true" else "false" ^ ")"
+      | Boolean x -> "Boolean(" ^ (if x then "true" else "false") ^ ")"
       | Name x -> "Name(\"" ^ x ^ "\")"
       | FunctionCall fc -> "FunCall(" ^ stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args) ^ ")"
       

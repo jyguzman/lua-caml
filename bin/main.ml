@@ -33,13 +33,14 @@ print_string expr_string;;  *)
 
 (* let source = "2 ^ (3*(-5^-2+8-9*-2-2-2- -2) -2 ^ -3 - (-3-(4)+(9-2+4^(-2))))" in  *)
 (* let source = "x = 50 y = 100 z = 100 return x + y" in *)
-let source = "
-  x = 50
-  while x > 45 do 
-    x = x - 1 
-    
-  end 
-" in 
+let source = 
+{|
+x = (5 < 10) 
+print(x, 100, "hello, world!", 5.494, false) 
+|} 
+
+in 
+
 (* let source = 
   "while x == 50 do
     if x ~= 50  

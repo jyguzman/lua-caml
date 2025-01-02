@@ -144,7 +144,7 @@ let eval_expr_list sym_tbl exprs =
       [] -> Ok (List.rev evals) 
     | x :: xs -> 
       let* expr = eval_expr sym_tbl x in 
-        eval_expr_list_aux sym_tbl xs (expr :: exprs)
+        eval_expr_list_aux sym_tbl xs (expr :: evals)
   in 
     eval_expr_list_aux sym_tbl exprs []
 
