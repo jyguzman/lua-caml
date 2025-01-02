@@ -1,2 +1,13 @@
-x = 50
-print("x: ", x)
+x = 10 
+while x > 0 do 
+  if x == 3 then 
+    print ("I'm 3 now!") 
+  elseif x == 6 then 
+    print ("I'm 6 now!")
+  elseif x == 9 then 
+    print("I'm 9 now!")
+  else 
+    print ("I'm not 3 or 6!")
+  end
+  x = x - 1
+end

@@ -1,6 +1,6 @@
 open Ast;;
 open Env;; 
-open Stdlib;;
+open Builtins;;
 exception InvalidOperation of string;;
 
 let ( let* ) r f = match r with 
@@ -141,9 +141,8 @@ and eval_fun_call_expr sym_tbl fc =
 
 and eval_builtin_func sym_tbl name args =
   let func = Hashtbl.find builtins name in
-    let* args = eval_expr_list sym_tbl args in 
-    let res = func args in 
-      Ok (res)
+  let* args = eval_expr_list sym_tbl args in 
+    func args
 
 and is_truthy expr envs = match expr with 
     Boolean x -> Ok x

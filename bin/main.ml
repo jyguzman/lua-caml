@@ -1,22 +1,17 @@
 open Luacaml;;
-let source = 
-{|
-x = 10 
-while x > 0 do 
-  if x == 3 then 
-    print ("I'm 3 now!") 
-  elseif x == 6 then 
-    print ("I'm 6 now!")
-  elseif x == 9 then 
-    print("I'm 9 now!")
-  else 
-    print ("I'm not 3 or 6!")
-  end
-  x = x - 1
-end
-|} 
 
-in 
+let load_source_file file_name = 
+  let file = open_in file_name in 
+  let rec load_source_file_aux file acc =
+    try 
+      let line = input_line file in 
+        load_source_file_aux file (acc ^ line)
+    with _ ->
+      acc
+  in 
+    load_source_file_aux file "";;
+
+let source = load_source_file "./test/test.calua" in
 
 let tokens = Lexer.tokenize_source source in 
 let prog = Parser.parse_program tokens in
