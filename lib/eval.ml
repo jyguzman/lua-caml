@@ -1,5 +1,6 @@
 open Ast;;
 open Env;; 
+open Stdlib;;
 exception InvalidOperation of string;;
 
 let ( let* ) r f = match r with 
@@ -13,6 +14,7 @@ let rec eval_expr envs expr =
     | Int _ | Float _ | String _ | Boolean _ | Nil | Function _ -> Ok expr
     | Name x -> Env.resolve envs x
     | Grouping x -> eval_expr envs x
+    | FunctionCall fc -> eval_fun_call_expr envs fc
 
     | Concat (l, r) -> 
       let* left = eval_expr envs l in 
@@ -129,6 +131,20 @@ let rec eval_expr envs expr =
 
     | _ -> Ok (Float(0.0))
 
+and eval_fun_call_expr sym_tbl fc = 
+  match fc.target with 
+    | Name x -> 
+      (match x with
+        x when (Hashtbl.find_opt builtins x) != None -> eval_builtin_func sym_tbl x fc.args
+        | _ -> Error (InvalidOperation ("function '" ^ x ^ "' not defined"))) 
+    | Grouping _ | FunctionCall _ -> Error (InvalidOperation "Non-identifier function call not supported yet")
+
+and eval_builtin_func sym_tbl name args =
+  let func = Hashtbl.find builtins name in
+    let* args = eval_expr_list sym_tbl args in 
+    let res = func args in 
+      Ok (res)
+
 and is_truthy expr envs = match expr with 
     Boolean x -> Ok x
   | Int x -> Ok (x > 0) 
@@ -137,8 +153,7 @@ and is_truthy expr envs = match expr with
   | Nil -> Ok false
   | _ -> let* expr = eval_expr envs expr in is_truthy expr envs
 
-
-let eval_expr_list sym_tbl exprs = 
+and eval_expr_list sym_tbl exprs = 
   let rec eval_expr_list_aux sym_tbl exprs evals = 
     match exprs with 
       [] -> Ok (List.rev evals) 
@@ -168,8 +183,9 @@ and eval_stmt stmt sym_tbl = match stmt with
     let* right = eval_expr sym_tbl s.right in
       let _ = Env.add sym_tbl s.ident right s.is_local 
         in Ok ()
+  | IfStmt if_stmt -> eval_if_stmt if_stmt sym_tbl
   | WhileLoop wl -> eval_while_loop wl sym_tbl
-  | FunctionCall fc -> eval_fun_call sym_tbl fc
+  | FunctionCall fc -> eval_fun_call_stmt sym_tbl fc
   | _ -> Ok ()
 
 and eval_while_loop wl sym_table =
@@ -185,15 +201,26 @@ and eval_while_loop wl sym_table =
   in 
     eval_while_loop_aux wl sym_table
 
-and eval_fun_call sym_tbl fc = 
-  let open Stdlib in 
+and eval_if_stmt if_stmt sym_tbl =
+  let new_env = Env.create 16 in
+  let sym_tbl = new_env :: sym_tbl in   
+  let* truthy = is_truthy if_stmt.condition sym_tbl in
+  if truthy then 
+    let* () = eval_block if_stmt.then_block sym_tbl 
+      in Ok ()
+  else 
+    match if_stmt.elseif with 
+      Some ef -> eval_if_stmt ef sym_tbl 
+    | None ->
+      match if_stmt.else_block with 
+        None -> Ok ()
+      | Some block -> eval_block block sym_tbl
+
+and eval_fun_call_stmt sym_tbl fc = 
   match fc.target with 
     | Name x -> 
       (match x with
         x when (Hashtbl.find_opt builtins x) != None -> 
-          let func = Hashtbl.find builtins x in
-          let* args = eval_expr_list sym_tbl fc.args in 
-          let _ = func args 
-            in Ok ()
+          let _ = eval_builtin_func sym_tbl x fc.args in Ok ()
         | _ -> Error (InvalidOperation ("function '" ^ x ^ "' not defined"))) 
     | Grouping _ | FunctionCall _ -> Error (InvalidOperation "Non-identifier function call not supported yet")

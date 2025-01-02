@@ -55,15 +55,15 @@ let peek lexer n =
 
 let next lexer = peek lexer 1
 
-let tokenize_string lexer = 
+let tokenize_string lexer quote = 
   let rec tokenize_string lexer acc =
     if String.length lexer.current = 0 then Tokenizer.raise_unterminated_str acc lexer.line lexer.col
     else
       let c = String.get lexer.current 0 in
       let c_str = String.make 1 c in
       let acc_new = acc ^ c_str in  
-      let rest = cut_first_n lexer.current 1 in    
-      if c = '"' || c = '\'' then 
+      let rest = cut_first_n lexer.current 1 in            
+      if (c = '"' && quote = '"') || (c = '\'' && quote == '\'') then 
         let lexer = {lexer with current = cut_first_n lexer.current 1} in (acc, lexer)
       else 
         tokenize_string {lexer with current = rest; col = lexer.col + 1} acc_new
@@ -159,7 +159,7 @@ let tokenize_source source =
 
         | 'a' .. 'z' | 'A' .. 'Z' -> tokenize_ident lexer 
 
-        | '"' | '\'' -> tokenize_string {lexer with current = skip} 
+        | '"' | '\'' -> tokenize_string {lexer with current = skip} c
 
         | '^' | '<' | '>' | '=' | '~' | '+' | '-' | '/' | '*' |'.' 
         | ';' | ':' | ',' | '[' | ']' | '{' | '}' | '(' | ')' -> tokenize_char lexer c

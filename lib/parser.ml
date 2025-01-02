@@ -173,8 +173,7 @@ and parse_primary expr tokens =
       | Ident i -> 
         let next = peek xs in (match next with 
           | Some t -> (match t.token_type with 
-            | Punctuation LParen
-              -> parse_fun_call_expr x (List.tl xs)
+            | Punctuation LParen -> parse_fun_call_expr x (List.tl xs)
             |  _ -> (Ast.Name i, xs))
           | None -> (Ast.Name i, xs)) 
       | Keywords Nil -> Ast.Nil, xs 
@@ -189,11 +188,11 @@ and parse_primary expr tokens =
       | _ -> expr, tokens
 
 and parse_fun_call_expr func_name tokens  =
-  let params_result = parse_args tokens in match params_result with 
-    Ok (params, tokens_after_params) -> 
+  let args_result = parse_args tokens in match args_result with 
+    Ok (args, tokens_after_params) -> 
       let (fc: Ast.expr) = Ast.FunctionCall {
         target = Ast.Name func_name.lexeme; 
-        args = List.rev params;
+        args = List.rev args;
       } in 
       fc, tokens_after_params
   | Error e -> raise e
@@ -233,30 +232,27 @@ and parse_params tokens =
     parse_params_aux [] tokens
 
 
-  and parse_args tokens = 
-    let rec parse_args_aux params tokens = 
-      match tokens with
-        [] -> Error (ParseError ("unexpected end of file parsing parameter list"))
-      | x :: xs -> match x.token_type with
-          Punctuation RParen -> Ok (params, xs)
-        | Punctuation Comma -> 
-          let none_err_msg = "unexpected end of file in parameter list after comma " ^ stringify_token x in 
-          let* next = peek_res xs none_err_msg in (match next.token_type with 
-              Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
-            | _ -> parse_args_aux params xs)
-
-        | Ident i -> 
-          let (param: Ast.expr) = Ast.Name i in parse_args_aux (param :: params) xs
+and parse_args tokens = 
+  let rec parse_args_aux params tokens = 
+    match tokens with
+      [] -> Error (ParseError ("unexpected end of file parsing parameter list"))
+    | x :: xs -> match x.token_type with
+        Punctuation RParen -> Ok (params, xs)
+      | Punctuation Comma -> 
+        let none_err_msg = "unexpected end of file in parameter list after comma " ^ stringify_token x in 
+        let* next = peek_res xs none_err_msg in (match next.token_type with 
+            Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
+          | _ -> parse_args_aux params xs)
+      | _ -> 
+        let param, toks_after_arg = parse_expr Ast.Dummy (x :: xs) in
+        let none_err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
+        let* next = peek_res toks_after_arg none_err_msg in (match next.token_type with 
+          Punctuation RParen -> parse_args_aux (param :: params) toks_after_arg
         | _ -> 
-          let param, toks_after_arg = parse_expr Ast.Dummy (x :: xs) in
-          let none_err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
-          let* next = peek_res toks_after_arg none_err_msg in (match next.token_type with 
-            Punctuation RParen -> parse_args_aux (param :: params) toks_after_arg
-          | _ -> 
-            let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_arg in
-            parse_args_aux (param :: params) toks_after_arg)
-    in 
-      parse_args_aux [] tokens
+          let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_arg in
+          parse_args_aux (param :: params) toks_after_arg)
+  in 
+    parse_args_aux [] tokens
 
 and parse_block tokens = 
   let rec parse_block_aux block tokens = 

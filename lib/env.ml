@@ -23,12 +23,12 @@ module Env = struct
   let get (t: t) name = Hashtbl.find t name
     
   let rec resolve (envs: t list) name = 
-    (match envs with 
-        [] -> Error (NameError ("name '" ^ name ^ "' is not defined")) 
-        | x :: xs -> 
-          let value = get_opt x name in match value with 
-            Some v -> Ok v 
-          | None -> resolve xs name)
+    match envs with 
+      [] -> Error (NameError ("name '" ^ name ^ "' is not defined")) 
+      | x :: xs -> 
+        let value = get_opt x name in match value with 
+          Some v -> Ok v 
+        | None -> resolve xs name
 
   let rec resolve_opt (envs: t list) name = match envs with 
     [] -> None 
