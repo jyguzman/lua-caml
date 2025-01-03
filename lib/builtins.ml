@@ -20,7 +20,7 @@ let typeof args =
       | Ast.String _ -> Ast.String("string")
       | Ast.Boolean _ -> Ast.String("boolean")
       | _ -> Ast.String("unknown type") in Ok (res)
-  |_ -> Error (IncorrectNumberOfArguments "tostring requires one argument")
+  |_ -> Error (IncorrectNumberOfArguments "typeof requires one argument")
 
 let builtins = Hashtbl.create 16
 let () = Hashtbl.add builtins "print" print

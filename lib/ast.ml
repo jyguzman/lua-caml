@@ -149,6 +149,7 @@ let rec stringify_expr expr =
       | Grouping x -> "Grouping(" ^ (stringify_expr_aux x level) ^ ")"
       | Boolean x -> "Boolean(" ^ (if x then "true" else "false") ^ ")"
       | Name x -> "Name(\"" ^ x ^ "\")"
+      | Function f -> stringify_function f
       | FunctionCall fc -> "FunCall(" ^ stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args) ^ ")"
       
       | Greater (l, r) -> stringify_bin_expr "Greater" l r
@@ -180,7 +181,7 @@ and stringify_function func =
   let name, params, block = func.name, func.body.params, func.body.block in
   let params_str = List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr params) in
   let block_str = stringify_block block in  
-  name ^ "(params: " ^ params_str ^ "body: " ^ block_str ^ ")"
+  name ^ "Function(params: " ^ params_str ^ "body: " ^ block_str ^ ")"
 
 and stringify_stmt stmt = 
   match stmt with 

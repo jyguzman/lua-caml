@@ -5,7 +5,7 @@ let load_source_file file_name =
   let rec load_source_file_aux file acc =
     try 
       let line = input_line file in 
-        load_source_file_aux file (acc ^ line)
+        load_source_file_aux file (acc ^ line ^ "\n")
     with _ ->
       acc
   in 
