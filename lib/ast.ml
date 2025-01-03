@@ -48,17 +48,20 @@ type expr =
     | Grouping of expr
 
 and stmt = 
-  | AssignStmt of {
-    ident: string;
-    is_local: bool;
-    right: expr;
-  }
+  | AssignStmt of assign_stmt
   | FunctionCall of fun_call
   | DoBlock of block 
   | WhileLoop of wl
   | Function of func
   | IfStmt of if_stmt
-  | LastStmt of last_stmt
+  | ReturnStmt of expr option
+  | Break 
+
+  and assign_stmt = {
+    name: string;
+    right: expr;
+    is_local: bool;
+  }
 
   and func = {
     name: name;
@@ -66,17 +69,17 @@ and stmt =
   }
   
   and func_body = {
-    params: expr list;
+    params: name list;
     block: block
   }
 
   and wl = {
-    condition: expr;
+    while_condition: expr;
     body: block;
   }
 
   and if_stmt = {
-    condition: expr;
+    then_condition: expr;
     then_block: block;
     elseif: if_stmt option;
     else_block: block option;
@@ -85,18 +88,13 @@ and stmt =
   and block = chunk 
   and chunk = {
     stmts: stmt list; 
-    last_stmt: last_stmt option;
-  }
+  }    
 
-  and last_stmt = 
-    | ReturnStmt of expr option
-    | Break 
-
-    let empty_block = {stmts=[]; last_stmt = None}
-    let empty_if = IfStmt{condition = Nil; then_block = empty_block; elseif = None; else_block = None}
+    let empty_block = {stmts=[]}
+    let empty_if = IfStmt{then_condition = Nil; then_block = empty_block; elseif = None; else_block = None}
     
     let make_optional block = 
-      if List.length block.stmts = 0 && block.last_stmt = None then None
+      if List.length block.stmts = 0 then None
       else Some block
     
     let make_optional_if if_stmt =
@@ -104,8 +102,8 @@ and stmt =
         | None -> None
         | Some f -> 
           match f with
-            f when f = {condition = Nil; 
-              then_block = {stmts=[]; last_stmt = None}; 
+            f when f = {then_condition = Nil; 
+              then_block = {stmts=[]}; 
               elseif = None; 
               else_block = None} -> None 
           | _ -> Some f
@@ -174,27 +172,26 @@ let rec stringify_expr expr =
 
 and stringify_block block = 
   let stmt_strings = List.map stringify_stmt block.stmts in 
-  let ret_stmt_str = [match block.last_stmt with None -> "" | Some ret -> stringify_stmt (LastStmt ret)] in
-  "[" ^ String.concat "," (List.append stmt_strings ret_stmt_str) ^ "]"
+  "[" ^ String.concat "," stmt_strings ^ "]"
 
 and stringify_function func = 
   let name, params, block = func.name, func.body.params, func.body.block in
-  let params_str = List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr params) in
+  let params_str = List.fold_left (fun acc x -> acc ^ x ^ ", ") "" params in
   let block_str = stringify_block block in  
-  name ^ "Function(params: " ^ params_str ^ "body: " ^ block_str ^ ")"
+    "Function(name:" ^ name ^ ", params: " ^ params_str ^ "body: " ^ block_str ^ ")"
 
 and stringify_stmt stmt = 
   match stmt with 
     | AssignStmt s -> 
       let local_str = "local: " ^ if s.is_local then "true" else "false" in 
-        "Assignment(\"" ^ s.ident ^ "\" = " ^ (stringify_expr s.right) ^ ", " ^ local_str ^ ")"
-    | LastStmt ReturnStmt expr -> 
+        "Assignment(\"" ^ s.name ^ "\" = " ^ (stringify_expr s.right) ^ ", " ^ local_str ^ ")"
+    | ReturnStmt expr -> 
         let expr_string = match expr with 
           | Some e -> stringify_expr e
           | None -> "empty" in  
         "Return(" ^ expr_string ^ ")\n"
-    | LastStmt Break -> "Break()"
-    | WhileLoop wl -> "While(condition = " ^ stringify_expr wl.condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
+    | Break -> "Break()"
+    | WhileLoop wl -> "While(condition = " ^ stringify_expr wl.while_condition ^ "\n block = " ^ stringify_block wl.body ^ ")"
     | IfStmt i -> stringify_if_stmt i
     | Function f -> stringify_function f
     | FunctionCall fc -> "FunCall(" ^ stringify_prefix_expr fc.target ^ List.fold_left (fun acc x -> acc ^ ", " ^ x) "" (List.map stringify_expr fc.args) ^ ")"
@@ -205,7 +202,7 @@ and stringify_if_stmt_aux if_stmt level =
   let then_str = "\n" ^ indent ^ "then: " ^ stringify_block if_stmt.then_block in 
   let else_str = match if_stmt.else_block with None -> "" | Some e -> "\n" ^ indent ^ "else: " ^ stringify_block e in
   let else_if_str = match if_stmt.elseif with None -> "" | Some e -> "\n" ^ indent ^ "else if:\n " ^ (stringify_if_stmt_aux e (level + 1)) in
-  indent ^ "IF(\n" ^ indent ^ "condition = " ^ stringify_expr if_stmt.condition ^ indent ^ then_str ^ else_if_str ^ else_str ^ "\nEND)"
+  indent ^ "IF(\n" ^ indent ^ "condition = " ^ stringify_expr if_stmt.then_condition ^ indent ^ then_str ^ else_if_str ^ else_str ^ "\nEND)"
 and stringify_if_stmt if_stmt =
   stringify_if_stmt_aux if_stmt 0
 

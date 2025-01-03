@@ -1,8 +1,9 @@
 open Token;;
 open Result;;
 
-exception InvalidToken of string;;
-exception ParseError of string;;
+exception Invalid_token of string;;
+exception Parse_error of string;;
+
 
 (* Chain results easier*)
 let ( let* ) r f = match r with 
@@ -20,14 +21,14 @@ let consume tokens = match tokens with [] -> None, [] | x :: xs -> Some x,  xs
 
 let expect token_type_name token_type tokens =
   match tokens with 
-    [] -> Error (ParseError ("unexpected end of file, expected token type " ^ token_type_name))
+    [] -> Error (Parse_error ("unexpected end of file, expected token type " ^ token_type_name))
     | x :: xs  -> match x with 
       | x when x.token_type = token_type -> Ok (Some x, xs)
       | x when get_tok_type x.token_type = token_type -> Ok (Some x, xs)
-      | _ -> Error (ParseError ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
+      | _ -> Error (Parse_error ("expected " ^ token_type_name ^ " but got " ^ stringify_token x))
 
 let peek_res tokens msg = match tokens with 
-  [] -> Error (ParseError msg)
+  [] -> Error (Parse_error msg)
   | x :: _ -> Ok x
 
 let accept token_type tokens  = 
@@ -47,11 +48,11 @@ and parse_and_or expr tokens =
       | x :: xs -> 
         match x.token_type with 
           | Keywords And -> 
-            let* right, rest = parse_comparison Ast.Nil xs in
-              parse_expr_aux (Ast.And (left, right)) rest
+              let* right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.And (left, right)) rest
           | Keywords Or -> 
-            let* right, rest = parse_comparison Ast.Nil xs in
-              parse_expr_aux (Ast.Or (left, right)) rest
+              let* right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.Or (left, right)) rest
           | _ -> Ok (left, remaining)
   in 
     let* left, remaining = parse_comparison expr tokens in 
@@ -66,18 +67,12 @@ and parse_comparison expr tokens =
           | BinOp x -> 
             let* right, rest = parse_comparison Ast.Nil xs in
               (match x with 
-                | Equal ->
-                    parse_expr_aux (Ast.Equal (left, right)) rest
-                | Less ->  
-                    parse_expr_aux (Ast.Less (left, right)) rest
-                | Leq -> 
-                    parse_expr_aux (Ast.Leq (left, right)) rest
-                | Greater ->         
-                    parse_expr_aux (Ast.Greater (left, right)) rest
-                | Geq ->         
-                    parse_expr_aux (Ast.Geq (left, right)) rest
-                | NotEqual ->         
-                    parse_expr_aux (Ast.Neq (left, right)) rest
+                | Equal -> parse_expr_aux (Ast.Equal (left, right)) rest
+                | Less -> parse_expr_aux (Ast.Less (left, right)) rest
+                | Leq -> parse_expr_aux (Ast.Leq (left, right)) rest
+                | Greater -> parse_expr_aux (Ast.Greater (left, right)) rest
+                | Geq -> parse_expr_aux (Ast.Geq (left, right)) rest
+                | NotEqual -> parse_expr_aux (Ast.Neq (left, right)) rest
                 | _ -> Ok (left, remaining))
           | _ -> Ok (left, remaining)
     in 
@@ -105,11 +100,11 @@ and parse_term expr tokens =
       | x :: xs -> 
         match x.token_type with 
           | Minus -> 
-            let* right, rest = parse_comparison Ast.Nil xs in
-              parse_expr_aux (Ast.Subtract (left, right)) rest
+              let* right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.Subtract (left, right)) rest
           | BinOp Plus -> 
-            let* right, rest = parse_comparison Ast.Nil xs in
-              parse_expr_aux (Ast.Add (left, right)) rest
+              let* right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.Add (left, right)) rest
           | _ -> Ok (left, remaining)
   in 
     let* left, remaining = parse_factor expr tokens in 
@@ -122,11 +117,11 @@ and parse_factor expr tokens =
       | x :: xs -> 
         match x.token_type with 
           | BinOp Star -> 
-            let* right, rest = parse_comparison Ast.Nil xs in
-              parse_expr_aux (Ast.Multiply (left, right)) rest
+              let* right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.Multiply (left, right)) rest
           | BinOp Slash -> 
-            let* right, rest = parse_comparison Ast.Nil xs in
-              parse_expr_aux (Ast.Divide (left, right)) rest
+              let* right, rest = parse_comparison Ast.Nil xs in
+                parse_expr_aux (Ast.Divide (left, right)) rest
           | _ -> Ok (left, remaining)
   in 
     let* left, remaining = parse_unary expr tokens in 
@@ -153,13 +148,13 @@ and parse_power expr tokens =
       | x :: xs -> 
         match x.token_type with 
           | Caret -> 
-            let* right, rest = parse_unary Ast.Nil xs in
-            parse_power_aux (Ast.Power (left, right)) rest
+              let* right, rest = parse_unary Ast.Nil xs in
+                parse_power_aux (Ast.Power (left, right)) rest
           | _ -> Ok (left, remaining)
   in 
     match parse_primary expr tokens with
-  |   Ok (left, remaining) -> parse_power_aux left remaining
-  |   Error e -> Error e
+      Ok (left, remaining) -> parse_power_aux left remaining
+    | Error e -> Error e
 
 and parse_primary expr tokens = 
   match tokens with 
@@ -181,11 +176,11 @@ and parse_primary expr tokens =
       | Punctuation LParen -> 
         let* expr, rest = parse_expr expr xs in
           (match rest with 
-            | [] -> Error (ParseError (raise_invalid_token x "expected closing parenthesis"))
+            | [] -> Error (Parse_error (raise_invalid_token x "expected closing parenthesis"))
             | x :: xs -> match x.token_type with
               | Punctuation RParen -> 
                   let (g: Ast.expr) = Ast.Grouping expr in Ok (g, xs)
-              | _ -> Error (ParseError (raise_invalid_token x "expected closing parenthesis")))
+              | _ -> Error (Parse_error (raise_invalid_token x "expected closing parenthesis")))
       | EOF -> Ok (expr, [])
       | _ -> Ok (expr, tokens)
 
@@ -199,60 +194,74 @@ and parse_function tokens =
         params = List.rev params;
         block = func_body_block
       }
-    } in Ok (func, tokens_after_body)
+    } 
+  in 
+    Ok (func, tokens_after_body)
 
 and parse_fun_call_expr func_name tokens  =
   let* args, tokens_after_args = parse_args tokens in 
   let (fc: Ast.expr) = Ast.FunctionCall {
     target = Ast.Name func_name.lexeme; 
     args = List.rev args;
-  } in Ok(fc, tokens_after_args)
+  } 
+  in 
+    Ok(fc, tokens_after_args)
 
 and parse_assignment name tokens is_local = 
   match tokens with 
-    | [] -> Error (ParseError ("unexpected end of file assigning identifier \"" ^ name ^ "\""))
+    | [] -> Error (Parse_error ("unexpected end of file assigning identifier \"" ^ name ^ "\""))
     | x :: xs -> 
       let* expr, rest = parse_expr Ast.Dummy (x :: xs) in 
-    let stmt = Ast.AssignStmt{ident = name; is_local = is_local; right = expr} in 
-    Ok (stmt, rest)
+      let stmt = Ast.AssignStmt{
+        name = name; 
+        is_local = is_local; 
+        right = expr
+      } in 
+        Ok (stmt, rest)
 
 and parse_return_stmt tokens = 
   let* expr, rest = parse_expr Ast.Dummy tokens in 
-    Ok (Ast.LastStmt (ReturnStmt (Some expr)), rest)
+    Ok (Ast.ReturnStmt (Some expr), rest)
 
-and parse_params tokens = 
-  let rec parse_params_aux params tokens = 
+and parse_params tokens: (string list * token list, exn) t  = 
+  let rec parse_params_aux names tokens = 
     match tokens with
-      [] -> Error (ParseError ("unexpected end of file parsing parameter list"))
+      [] -> Error (Parse_error ("unexpected end of file parsing parameter list"))
     | x :: xs -> match x.token_type with
-        Punctuation RParen -> Ok (params, xs)
+        Punctuation RParen -> Ok (names, xs)
       | Punctuation Comma -> 
         let none_err_msg = "unexpected end of file in parameter list after comma " ^ stringify_token x in 
         let* next = peek_res xs none_err_msg in (match next.token_type with 
-            Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
-          | _ -> parse_params_aux params xs)
-      | _ -> 
-        let* param, toks_after_ident = parse_expr Ast.Dummy (x :: xs) in
+            Punctuation RParen -> Error (Parse_error ("expected argument after comma " ^ stringify_token x))
+          | _ -> parse_params_aux names xs)
+      | Ident _ -> 
+        let* name, toks_after_ident = parse_ident (x :: xs) in
         let none_err_msg = "expected comma or closing parenthesis after identifier " ^ stringify_token x in
         let* next = peek_res toks_after_ident none_err_msg in (match next.token_type with 
-          Punctuation RParen -> parse_params_aux (param :: params) toks_after_ident
+          Punctuation RParen -> parse_params_aux (name :: names) toks_after_ident
         | _ -> 
           let* _, _ = expect "COMMA" (Punctuation Comma) toks_after_ident in
-            parse_params_aux (param :: params) toks_after_ident)
+            parse_params_aux (name :: names) toks_after_ident)
+      | _ -> Error (Parse_error ("expected an indentifier but got " ^ stringify_token x))
   in 
     parse_params_aux [] tokens
 
+and parse_ident tokens: (string * token list, exn) t = 
+  let* ident, tokens_after_ident = expect "IDENT" (TIdent) tokens in 
+  match ident with 
+    None -> Error (Parse_error "empty identifier")
+  | Some i -> Ok (i.lexeme, tokens_after_ident)
 
 and parse_args tokens = 
   let rec parse_args_aux params tokens = 
     match tokens with
-      [] -> Error (ParseError ("unexpected end of file parsing parameter list"))
+      [] -> Error (Parse_error ("unexpected end of file parsing parameter list"))
     | x :: xs -> match x.token_type with
         Punctuation RParen -> Ok (params, xs)
       | Punctuation Comma -> 
         let none_err_msg = "unexpected end of file in parameter list after comma " ^ stringify_token x in 
         let* next = peek_res xs none_err_msg in (match next.token_type with 
-            Punctuation RParen -> Error (ParseError ("expected argument after comma " ^ stringify_token x))
+            Punctuation RParen -> Error (Parse_error ("expected argument after comma " ^ stringify_token x))
           | _ -> parse_args_aux params xs)
       | _ -> 
         let* param, toks_after_arg = parse_expr Ast.Dummy (x :: xs) in
@@ -268,29 +277,28 @@ and parse_args tokens =
 and parse_block tokens = 
   let rec parse_block_aux block tokens = 
     match tokens with 
-      | [] -> Error (ParseError "unexpected end of file parsing block") 
+      | [] -> Error (Parse_error "unexpected end of file parsing block") 
       | x :: xs -> match x.token_type with 
-          EOF | Keywords End -> Ok({block with Ast.stmts = List.rev block.Ast.stmts}, xs)
-           | Keywords Elseif | Keywords Else -> Ok({block with Ast.stmts = List.rev block.Ast.stmts}, x :: xs)
+          EOF | Keywords End -> Ok ({Ast.stmts = List.rev block.Ast.stmts}, xs)
+        | Keywords Elseif | Keywords Else -> Ok ({Ast.stmts = List.rev block.Ast.stmts}, x :: xs)
         | _ -> 
           let* stmt, rest = parse_stmt tokens in
             let new_block = match stmt with 
-                Ast.LastStmt stmt -> {block with Ast.last_stmt = Some stmt}
-              | _ -> {block with Ast.stmts = (stmt :: block.Ast.stmts)}
+              | _ -> {Ast.stmts = (stmt :: block.Ast.stmts)}
             in parse_block_aux new_block rest
   in
-    parse_block_aux {Ast.stmts = []; last_stmt = None} tokens
+    parse_block_aux {Ast.stmts = []} tokens
 
 and parse_stmt tokens =
   match tokens with 
-    | [] -> Error (ParseError "unexpected end of input")
+    | [] -> Error (Parse_error "unexpected end of input")
     | x :: xs -> 
       (match x.token_type with 
       | Keywords While -> parse_while_loop xs
       | Keywords Function -> parse_function_def xs
       | Keywords If -> parse_if_stmt xs
       | Keywords Return -> parse_return_stmt xs
-      | Keywords Break -> Ok (Ast.LastStmt Ast.Break, xs)
+      | Keywords Break -> Ok (Ast.Break, xs)
       | Keywords Local -> 
         let* ident, after_ident = expect "IDENT" (TIdent) xs in 
           let name = match ident with Some v -> v.lexeme | None -> "" in
@@ -303,9 +311,9 @@ and parse_stmt tokens =
               let* _, after_equal = expect "EQUAL" (BinOp Assign) xs in
                 parse_assignment name after_equal false
             | Punctuation LParen -> parse_fun_call_stmt name (List.tl xs)
-            | _ -> Error (ParseError ("unexpected token " ^ stringify_token t)))
-          | None -> Error (ParseError ("hanging indentifier " ^ stringify_token x))) 
-      | _ -> Error (ParseError ("unexpected token: " ^ stringify_token x))
+            | _ -> Error (Parse_error ("unexpected token " ^ stringify_token t)))
+          | None -> Error (Parse_error ("hanging indentifier " ^ stringify_token x))) 
+      | _ -> Error (Parse_error ("unexpected token: " ^ stringify_token x))
     )
 
 and parse_while_loop tokens = 
@@ -313,7 +321,7 @@ and parse_while_loop tokens =
   let* _, after_do = expect "DO" (Keywords Do) tokens_after_condition in
   let* while_block, tokens_after_while_block = parse_block after_do in
       Ok (Ast.WhileLoop {
-        condition = condition; 
+        while_condition = condition; 
         body = while_block
       }, tokens_after_while_block) 
 
@@ -336,11 +344,12 @@ and parse_if_stmt tokens =
   in 
   let else_if_block = Ast.make_optional_if (Ast.stmt_to_if else_if_block) in 
 
-  Ok(Ast.IfStmt{condition = condition; 
-        then_block = then_block; 
-        elseif = else_if_block; 
-        else_block = else_block}, 
-        tokens_after_else_if_block)
+  Ok (Ast.IfStmt{
+      then_condition = condition; 
+      then_block = then_block; 
+      elseif = else_if_block; 
+      else_block = else_block
+    }, tokens_after_else_if_block)
       
 and parse_function_def tokens =
   let ident, tokens_after_ident = accept (TIdent) tokens in 
@@ -348,13 +357,14 @@ and parse_function_def tokens =
   let* _, after_parens = expect "LPAREN" (Punctuation LParen) tokens_after_ident in
   let* params, tokens_after_params = parse_params after_parens in 
   let* func_body_block, tokens_after_body = parse_block tokens_after_params in 
-  Ok (Ast.Function {
+  let (func: Ast.expr) = Ast.Function {
     name = name; 
     body = {
       params = List.rev params;
       block = func_body_block
     }
-  }, tokens_after_body)
+  } in let stmt = Ast.AssignStmt{name = name; is_local = false; right = func} in
+  Ok (stmt, tokens_after_body)
 
 and parse_fun_call_stmt func_name tokens = 
   let* params, tokens_after_params = parse_args tokens in

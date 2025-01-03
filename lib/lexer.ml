@@ -35,15 +35,15 @@ type lexer = {
 }
 
 module Tokenizer = struct
-  exception InvalidToken of string
-  exception UnterminatedString of string
+  exception Invalid_token of string
+  exception Unterminated_string of string
   let raise_invalid_token lexeme line col = 
     let message = "Invalid token '" ^ lexeme ^ "' at line " ^ (string_of_int line) ^ ", col " ^ (string_of_int @@ col+1) in
-    let exc = InvalidToken message in raise exc
+    let exc = Invalid_token message in raise exc
 
   let raise_unterminated_str lexeme line col = 
     let message = "Unterminated string '" ^ lexeme ^ "' starting at line " ^ (string_of_int line) ^ ", col " ^ (string_of_int @@ col+1) in
-    let exc = UnterminatedString message in raise exc
+    let exc = Unterminated_string message in raise exc
   let create source = {source = source; current = source; line = 1; col = 0; tokens = []}
   let make source current line col tokens = {source = source; current = current; line = line; col = col; tokens = tokens}
 end
